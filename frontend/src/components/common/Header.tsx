@@ -28,6 +28,11 @@ const navigationItems: NavigationItem[] = [
     icon: 'CpuChipIcon',
   },
   {
+    label: 'System Design',
+    path: '/system-design-lab',
+    icon: 'ServerStackIcon',
+  },
+  {
     label: 'Progress',
     path: '/progress-dashboard',
     icon: 'ChartBarIcon',
