@@ -10,6 +10,7 @@ import RelatedQuestionsCard from './RelatedQuestionsCard';
 import PerformanceMetricsCard from './PerformanceMetricsCard';
 import ActionButtonsPanel from './ActionButtonsPanel';
 import InterviewerPerspectiveCard from './InterviewerPerspectiveCard';
+import AILabChat from './AILabChat';
 import { questionsService, Question as ServiceQuestion } from '@/lib/services/questionsService';
 
 interface ReviewQuestion {
@@ -116,6 +117,7 @@ function QuestionReviewContent() {
   const [questions, setQuestions] = useState<ReviewQuestion[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<ReviewQuestion | null>(null);
   const [loading, setLoading] = useState(true);
+  const [liveResponse, setLiveResponse] = useState('');
 
   useEffect(() => {
     setIsHydrated(true);
@@ -146,6 +148,7 @@ function QuestionReviewContent() {
   }, [searchParams]);
 
   const handleResponseUpdate = (response: string) => {
+    setLiveResponse(response);
     setCurrentQuestion((prev) => ({
       ...prev,
       userResponse: response,
@@ -245,10 +248,13 @@ function QuestionReviewContent() {
             <FeedbackPanel
               feedback={currentQuestion.feedback}
               questionType={currentQuestion.category}
+              hasAnswer={liveResponse.trim().length > 10}
             />
-            <InterviewerPerspectiveCard
-              perspective={currentQuestion.interviewerPerspective}
-            />
+            {liveResponse.trim().length > 10 && (
+              <InterviewerPerspectiveCard
+                perspective={currentQuestion.interviewerPerspective}
+              />
+            )}
           </div>
 
           <div className="space-y-24">
@@ -259,6 +265,10 @@ function QuestionReviewContent() {
               onPracticeSimilar={handlePracticeSimilar}
               onToggleReviewList={handleToggleReviewList}
               onToggleMastered={handleToggleMastered}
+            />
+            <AILabChat 
+              questionId={currentQuestion.id}
+              questionText={currentQuestion.content}
             />
             <PerformanceMetricsCard
               attempts={currentQuestion.performanceMetrics.attempts}

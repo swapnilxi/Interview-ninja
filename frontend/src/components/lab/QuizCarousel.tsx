@@ -1,0 +1,159 @@
+'use client';
+
+import { useState } from 'react';
+import Icon from '@/components/ui/AppIcon';
+
+interface QuizQuestion {
+  q: string;
+  options: string[];
+  answer: number;
+  explanation: string;
+}
+
+interface QuizCarouselProps {
+  questions: QuizQuestion[];
+  onGenerateMore?: () => void;
+  hasMore?: boolean;
+}
+
+export default function QuizCarousel({ questions, onGenerateMore, hasMore = true }: QuizCarouselProps) {
+  const [idx, setIdx] = useState(0);
+  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [showExplanation, setShowExplanation] = useState<Record<number, boolean>>({});
+  const [generatingMore, setGeneratingMore] = useState(false);
+
+  const current = questions[idx];
+  const hasAnswered = answers[idx] !== undefined;
+  const isCorrect = hasAnswered && answers[idx] === current.answer;
+  const score = Object.entries(answers).filter(([i, a]) => questions[Number(i)]?.answer === a).length;
+
+  const handleAnswer = (optIdx: number) => {
+    if (hasAnswered) return;
+    setAnswers(prev => ({ ...prev, [idx]: optIdx }));
+    setShowExplanation(prev => ({ ...prev, [idx]: true }));
+  };
+
+  const handleGenerateMore = () => {
+    setGeneratingMore(true);
+    setTimeout(() => {
+      setGeneratingMore(false);
+      onGenerateMore?.();
+    }, 1600);
+  };
+
+  return (
+    <div className="space-y-18">
+      {/* Score + Progress bar */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-12">
+          <span className="text-xs font-caption text-muted-foreground">
+            Question {idx + 1} / {questions.length}
+          </span>
+          <span className={`text-xs font-semibold px-9 py-4 rounded-full ${
+            score === 0 ? 'bg-muted text-muted-foreground' : 'bg-success/15 text-success'
+          }`}>
+            Score: {score} / {Object.keys(answers).length}
+          </span>
+        </div>
+        <div className="flex gap-6">
+          {questions.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setIdx(i)}
+              className={`w-8 h-8 rounded-full transition-smooth ${
+                i === idx ? 'bg-primary' : answers[i] !== undefined
+                  ? questions[i].answer === answers[i] ? 'bg-success' : 'bg-error'
+                  : 'bg-muted'
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Question card */}
+      <div className="bg-muted/40 border border-border rounded-lg p-18">
+        <p className="text-sm font-medium text-foreground mb-16 leading-relaxed">{current.q}</p>
+        <div className="space-y-9">
+          {current.options.map((opt, i) => {
+            const isSelected = answers[idx] === i;
+            const isRight = i === current.answer;
+            return (
+              <button
+                key={i}
+                onClick={() => handleAnswer(i)}
+                disabled={hasAnswered}
+                className={`w-full text-left text-xs px-14 py-10 rounded-md border transition-smooth flex items-center gap-12 ${
+                  hasAnswered
+                    ? isRight
+                      ? 'bg-success/10 border-success text-success font-medium'
+                      : isSelected
+                        ? 'bg-error/10 border-error text-error'
+                        : 'bg-card border-border text-muted-foreground opacity-60'
+                    : 'bg-card border-border text-foreground hover:border-primary/50 hover:bg-primary/5 cursor-pointer'
+                }`}
+              >
+                <span className={`w-20 h-20 rounded-full border flex-shrink-0 flex items-center justify-center text-xs font-bold ${
+                  hasAnswered && isRight ? 'border-success bg-success text-white'
+                    : hasAnswered && isSelected ? 'border-error bg-error text-white'
+                    : 'border-current'
+                }`}>
+                  {String.fromCharCode(65 + i)}
+                </span>
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Explanation */}
+      {showExplanation[idx] && (
+        <div className={`p-14 rounded-lg border text-xs leading-relaxed animate-fade-in ${
+          isCorrect ? 'bg-success/5 border-success/30 text-foreground' : 'bg-warning/5 border-warning/30 text-foreground'
+        }`}>
+          <div className="flex items-center gap-6 mb-6 font-semibold">
+            <Icon name={isCorrect ? 'CheckCircleIcon' : 'ExclamationCircleIcon'} size={14} className={isCorrect ? 'text-success' : 'text-warning'} />
+            {isCorrect ? 'Correct!' : 'Not quite — here\'s why:'}
+          </div>
+          {current.explanation}
+        </div>
+      )}
+
+      {/* Navigation */}
+      <div className="flex items-center justify-between pt-6">
+        <button
+          disabled={idx === 0}
+          onClick={() => setIdx(i => i - 1)}
+          className="flex items-center gap-6 px-14 py-7 rounded-md border border-border text-sm text-foreground hover:bg-muted transition-smooth disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <Icon name="ArrowLeftIcon" size={14} /> Previous
+        </button>
+
+        {idx < questions.length - 1 ? (
+          <button
+            onClick={() => setIdx(i => i + 1)}
+            className="flex items-center gap-6 px-14 py-7 rounded-md border border-border text-sm text-foreground hover:bg-muted transition-smooth"
+          >
+            Next <Icon name="ArrowRightIcon" size={14} />
+          </button>
+        ) : hasMore ? (
+          <button
+            onClick={handleGenerateMore}
+            disabled={generatingMore}
+            className="flex items-center gap-6 px-14 py-7 rounded-md bg-secondary text-secondary-foreground text-xs font-semibold hover:bg-secondary/90 transition-smooth disabled:opacity-60"
+          >
+            {generatingMore ? (
+              <><span className="w-10 h-10 border-2 border-secondary-foreground/30 border-t-secondary-foreground rounded-full animate-spin" /> Generating...</>
+            ) : (
+              <><Icon name="SparklesIcon" size={12} /> Generate 4 More</>
+            )}
+          </button>
+        ) : (
+          <span className="text-xs text-success flex items-center gap-6">
+            <Icon name="TrophyIcon" size={14} /> Quiz Complete! {score}/{questions.length} correct
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}

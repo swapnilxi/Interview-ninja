@@ -83,9 +83,12 @@ export default function QuestionTableRow({
               />
             </button>
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-foreground font-medium line-clamp-2">
+              <button 
+                onClick={() => onReview(question.id)}
+                className="text-sm text-left text-foreground font-medium whitespace-normal break-words hover:text-primary hover:underline transition-smooth focus-ring outline-none"
+              >
                 {question.questionText}
-              </p>
+              </button>
               {question.userPerformance !== undefined && (
                 <div className="flex items-center gap-6 mt-6">
                   <div className="flex items-center gap-3">

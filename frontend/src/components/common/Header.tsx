@@ -18,6 +18,16 @@ const navigationItems: NavigationItem[] = [
     icon: 'AcademicCapIcon',
   },
   {
+    label: 'CV Lab',
+    path: '/cv-lab',
+    icon: 'EyeIcon',
+  },
+  {
+    label: 'DSA Lab',
+    path: '/dsa-lab',
+    icon: 'CpuChipIcon',
+  },
+  {
     label: 'Progress',
     path: '/progress-dashboard',
     icon: 'ChartBarIcon',
@@ -26,11 +36,6 @@ const navigationItems: NavigationItem[] = [
     label: 'Question Bank',
     path: '/question-bank',
     icon: 'BookOpenIcon',
-  },
-  {
-    label: 'Review',
-    path: '/question-review',
-    icon: 'DocumentTextIcon',
   },
   {
     label: 'Config',

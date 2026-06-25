@@ -145,6 +145,7 @@ const EXPLANATIONS: Record<number, { answer: string; detail: string }> = {
 export default function DailySessionInteractive() {
   const router = useRouter();
   const [sessionActive, setSessionActive] = useState(false);
+  const [practiceStarted, setPracticeStarted] = useState(false);
   const [sessionDate, setSessionDate] = useState('');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -158,8 +159,12 @@ export default function DailySessionInteractive() {
   const [jdText, setJdText] = useState('');
 
   // AI Hint state
-  const [showAiAnswer, setShowAiAnswer] = useState(false);
-  const [showAiExplain, setShowAiExplain] = useState(false);
+  const [isGeneratingHint, setIsGeneratingHint] = useState(false);
+  const [showHint, setShowHint] = useState(false);
+  const [showExplain, setShowExplain] = useState(false);
+
+  // Timer state
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   // Load active session from localStorage if user refreshes
   useEffect(() => {
@@ -169,11 +174,28 @@ export default function DailySessionInteractive() {
     }
   }, []);
 
+  // Timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (practiceStarted && !viewAll) {
+      interval = setInterval(() => {
+        setElapsedSeconds((prev) => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [practiceStarted, viewAll]);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
   const loadSessionData = async (dateStr: string) => {
     setLoading(true);
     try {
       const qData = await questionsService.getAll();
-      const todayQs = qData.filter(q => q.dateEncountered === dateStr);
+      const todayQs = qData.filter((q) => q.dateEncountered === dateStr);
       if (todayQs.length > 0) {
         setQuestions(todayQs);
         setSessionDate(dateStr);
@@ -182,7 +204,7 @@ export default function DailySessionInteractive() {
         // Fetch saved answers
         const progress = await sessionService.getSessionByDate(dateStr);
         const ansMap: Record<string, string> = {};
-        progress.forEach(p => {
+        progress.forEach((p) => {
           ansMap[p.questionText] = p.answerText;
         });
         setAnswers(ansMap);
@@ -293,10 +315,26 @@ export default function DailySessionInteractive() {
   const handleClearSession = () => {
     localStorage.removeItem('ninja_active_session_date');
     setSessionActive(false);
+    setPracticeStarted(false);
+    setElapsedSeconds(0);
     setQuestions([]);
     setAnswers({});
     setCurrentIndex(0);
     setViewAll(false);
+  };
+
+  const handleGenerateHint = () => {
+    setIsGeneratingHint(true);
+    setTimeout(() => {
+      setIsGeneratingHint(false);
+      setShowHint(true);
+    }, 1500); // Simulate LLM generation time
+  };
+
+  const resetHints = () => {
+    setIsGeneratingHint(false);
+    setShowHint(false);
+    setShowExplain(false);
   };
 
   const activeQuestion = questions[currentIndex];
@@ -329,9 +367,10 @@ export default function DailySessionInteractive() {
                   onClick={() => setDifficulty(diff)}
                   className={`
                     py-12 rounded-md border text-sm font-medium transition-smooth focus-ring
-                    ${difficulty === diff 
-                      ? 'bg-primary border-primary text-primary-foreground' 
-                      : 'bg-input border-border text-muted-foreground hover:border-muted-foreground'
+                    ${
+                      difficulty === diff
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-input border-border text-muted-foreground hover:border-muted-foreground'
                     }
                   `}
                 >
@@ -343,14 +382,14 @@ export default function DailySessionInteractive() {
 
           <div>
             <label htmlFor="cv-text" className="block text-sm font-medium text-foreground mb-6">
-              Paste Resume / CV (Optional)
+              Paste context or upload any document (Optional)
             </label>
             <textarea
               id="cv-text"
               rows={4}
               value={cvText}
               onChange={(e) => setCvText(e.target.value)}
-              placeholder="Paste CV text here to make questions resume-aware..."
+              placeholder="Paste context or document text here..."
               className="w-full rounded-md border border-border bg-input px-12 py-12 text-sm text-foreground focus-ring placeholder:text-muted-foreground"
             />
           </div>
@@ -386,13 +425,37 @@ export default function DailySessionInteractive() {
     );
   }
 
-  // Phase 2: Active Session
+  // Phase 2: Ready / Interstitial
+  if (sessionActive && !practiceStarted) {
+    return (
+      <div className="max-w-2xl mx-auto bg-card rounded-lg p-36 shadow-lg border border-border mt-36 text-center animate-fade-in">
+        <Icon name="CheckBadgeIcon" size={64} className="text-success mx-auto mb-18" variant="outline" />
+        <h2 className="font-heading text-3xl font-semibold text-foreground mb-12">Session Ready!</h2>
+        <p className="text-muted-foreground mb-24 font-body">
+          Your custom interview questions have been generated and securely saved. This quiz mode will record your session duration and track your completion.
+        </p>
+        <button
+          onClick={() => setPracticeStarted(true)}
+          className="py-12 px-24 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground text-lg font-medium transition-smooth inline-flex items-center gap-12 focus-ring shadow-glow"
+        >
+          <Icon name="PlayCircleIcon" size={24} variant="solid" />
+          Start Practicing
+        </button>
+      </div>
+    );
+  }
+
+  // Phase 3: Active Session (Quiz Mode)
   return (
-    <div className="space-y-24 mt-24">
-      {/* Session Controls */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-12 bg-muted/40 p-18 border border-border rounded-lg">
+    <div className="space-y-24 mt-24 animate-fade-in">
+      {/* Session Controls Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-12 bg-muted/40 p-18 border border-border rounded-lg shadow-sm">
         <div className="flex items-center gap-12">
-          <span className="px-12 py-6 rounded-md bg-primary/10 text-primary font-code text-sm">
+          <span className="px-12 py-6 rounded-md bg-primary/10 text-primary font-code text-sm flex items-center gap-6">
+            <Icon name="ClockIcon" size={16} />
+            {formatTime(elapsedSeconds)}
+          </span>
+          <span className="px-12 py-6 rounded-md bg-card border border-border text-foreground font-code text-sm">
             Session Date: {sessionDate}
           </span>
           <span className="text-sm text-muted-foreground">
@@ -405,7 +468,7 @@ export default function DailySessionInteractive() {
             className="px-12 py-6 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted transition-smooth flex items-center gap-6"
           >
             <Icon name={viewAll ? "BookOpenIcon" : "ListBulletIcon"} size={16} variant="outline" />
-            {viewAll ? 'Back to Slider' : 'View All Questions'}
+            {viewAll ? 'Back to Quiz' : 'View All Questions'}
           </button>
           <button
             onClick={handleExport}
@@ -450,7 +513,7 @@ export default function DailySessionInteractive() {
                     value={answers[q.questionText] || ''}
                     onChange={(e) => {
                       const text = e.target.value;
-                      setAnswers(prev => ({ ...prev, [q.questionText]: text }));
+                      setAnswers((prev) => ({ ...prev, [q.questionText]: text }));
                     }}
                     className="w-full rounded-md border border-border bg-input px-12 py-6 text-xs text-foreground focus-ring placeholder:text-muted-foreground mb-12"
                   />
@@ -478,9 +541,70 @@ export default function DailySessionInteractive() {
           </div>
         </div>
       ) : (
-        // Slider View (Single Question Focus)
+        // Quiz Mode (Single Question Focus)
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-24">
-          <div className="lg:col-span-2 space-y-24">
+          
+          {/* AI Helper Sidebar Panel (Now on the LEFT) */}
+          <div className="space-y-24 order-2 lg:order-1">
+            {!showHint ? (
+              <div className="bg-card border border-border rounded-lg p-24 text-center shadow-md">
+                <Icon name="SparklesIcon" size={32} variant="outline" className="text-warning mx-auto mb-12" />
+                <h4 className="font-heading text-sm font-medium text-foreground mb-6">AI Copilot</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed mb-18">
+                  Stuck? You can summon the AI to provide a context-aware hint. This runs an on-demand inference to save LLM tokens.
+                </p>
+                <button
+                  onClick={handleGenerateHint}
+                  disabled={isGeneratingHint}
+                  className="w-full py-9 px-12 rounded-md border border-warning text-warning font-medium hover:bg-warning/10 transition-smooth flex items-center justify-center gap-6 disabled:opacity-50"
+                >
+                  {isGeneratingHint ? (
+                    <>
+                      <span className="w-12 h-12 border-2 border-warning/30 border-t-warning rounded-full animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="SparklesIcon" size={16} />
+                      Generate Hint
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : (
+              <div className="bg-card border border-warning/50 rounded-lg p-24 shadow-glow space-y-18 animate-fade-in">
+                <div className="flex items-center justify-between pb-12 border-b border-border">
+                  <div className="flex items-center gap-12">
+                    <Icon name="SparklesIcon" size={20} variant="solid" className="text-warning" />
+                    <h4 className="font-heading text-md font-semibold text-foreground">AI Reference Hint</h4>
+                  </div>
+                </div>
+                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap font-body">
+                  {activeExplanation.answer}
+                </p>
+                <button
+                  onClick={() => setShowExplain(!showExplain)}
+                  className="w-full py-9 px-12 rounded-md bg-secondary/10 text-secondary border border-secondary/20 text-xs font-semibold hover:bg-secondary/20 transition-smooth"
+                >
+                  {showExplain ? 'Hide Technical Explanation' : 'Explain More with AI'}
+                </button>
+              </div>
+            )}
+
+            {showHint && showExplain && (
+              <div className="bg-card border border-secondary/50 rounded-lg p-24 shadow-md space-y-12 animate-fade-in">
+                <div className="flex items-center gap-6 pb-6 border-b border-border">
+                  <Icon name="CpuChipIcon" size={18} variant="outline" className="text-secondary" />
+                  <h5 className="font-heading text-sm font-semibold text-foreground">Technical Breakdown</h5>
+                </div>
+                <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap font-code">
+                  {activeExplanation.detail}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="lg:col-span-2 space-y-24 order-1 lg:order-2">
             {/* Question Card */}
             <div className="bg-card border border-border rounded-lg p-24 shadow-md">
               <div className="flex justify-between items-center mb-18 pb-12 border-b border-border">
@@ -503,7 +627,7 @@ export default function DailySessionInteractive() {
               </label>
               <textarea
                 id="answer-box"
-                rows={8}
+                rows={10}
                 value={answers[activeQuestion?.questionText] || ''}
                 onChange={(e) => {
                   const text = e.target.value;
@@ -515,26 +639,14 @@ export default function DailySessionInteractive() {
                 placeholder="Formulate your technical answer details here..."
                 className="w-full rounded-md border border-border bg-input px-12 py-12 text-sm text-foreground focus-ring placeholder:text-muted-foreground font-body"
               />
-              <div className="flex justify-between">
+              <div className="flex justify-end">
                 <button
                   onClick={handleSaveAnswer}
                   className="py-9 px-18 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-smooth flex items-center gap-6"
                 >
                   <Icon name="CheckIcon" size={16} variant="outline" />
-                  Save/Submit Answer
+                  Save Answer
                 </button>
-                <div className="flex gap-12">
-                  <button
-                    onClick={() => {
-                      setShowAiAnswer(!showAiAnswer);
-                      setShowAiExplain(false);
-                    }}
-                    className="py-9 px-12 rounded-md border border-border text-sm text-foreground hover:bg-muted transition-smooth flex items-center gap-6"
-                  >
-                    <Icon name="LightBulbIcon" size={16} variant="outline" className="text-warning" />
-                    {showAiAnswer ? 'Hide AI Answer' : 'Show AI Answer'}
-                  </button>
-                </div>
               </div>
             </div>
 
@@ -544,8 +656,7 @@ export default function DailySessionInteractive() {
                 disabled={currentIndex === 0}
                 onClick={() => {
                   setCurrentIndex(currentIndex - 1);
-                  setShowAiAnswer(false);
-                  setShowAiExplain(false);
+                  resetHints();
                 }}
                 className="py-9 px-18 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted transition-smooth disabled:opacity-30 disabled:pointer-events-none flex items-center gap-6"
               >
@@ -556,8 +667,7 @@ export default function DailySessionInteractive() {
                 disabled={currentIndex === questions.length - 1}
                 onClick={() => {
                   setCurrentIndex(currentIndex + 1);
-                  setShowAiAnswer(false);
-                  setShowAiExplain(false);
+                  resetHints();
                 }}
                 className="py-9 px-18 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted transition-smooth disabled:opacity-30 disabled:pointer-events-none flex items-center gap-6"
               >
@@ -567,46 +677,6 @@ export default function DailySessionInteractive() {
             </div>
           </div>
 
-          {/* AI Helper Sidebar Panel */}
-          <div className="space-y-24">
-            {showAiAnswer ? (
-              <div className="bg-card border border-border rounded-lg p-24 shadow-md space-y-18 animate-fade-in">
-                <div className="flex items-center gap-12 pb-12 border-b border-border">
-                  <Icon name="SparklesIcon" size={20} variant="outline" className="text-warning" />
-                  <h4 className="font-heading text-md font-semibold text-foreground">AI Reference Answer</h4>
-                </div>
-                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap font-body">
-                  {activeExplanation.answer}
-                </p>
-                <button
-                  onClick={() => setShowAiExplain(!showAiExplain)}
-                  className="w-full py-9 px-12 rounded-md bg-secondary text-secondary-foreground text-xs font-semibold hover:bg-secondary/95 transition-smooth"
-                >
-                  {showAiExplain ? 'Hide Technical Explanation' : 'Explain More with AI'}
-                </button>
-              </div>
-            ) : (
-              <div className="bg-muted/30 border border-border rounded-lg p-24 text-center">
-                <Icon name="CpuChipIcon" size={32} variant="outline" className="text-muted-foreground/60 mx-auto mb-12" />
-                <h4 className="font-heading text-sm font-medium text-foreground mb-6">AI Coach Available</h4>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Stuck? Click "Show AI Answer" inside the editor panel to retrieve automated guidance prompts.
-                </p>
-              </div>
-            )}
-
-            {showAiAnswer && showAiExplain && (
-              <div className="bg-card border border-border rounded-lg p-24 shadow-md space-y-12 animate-fade-in">
-                <div className="flex items-center gap-6 pb-6 border-b border-border">
-                  <Icon name="CpuChipIcon" size={18} variant="outline" className="text-primary" />
-                  <h5 className="font-heading text-sm font-semibold text-foreground">Technical Breakdown</h5>
-                </div>
-                <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap font-code">
-                  {activeExplanation.detail}
-                </p>
-              </div>
-            )}
-          </div>
         </div>
       )}
     </div>
