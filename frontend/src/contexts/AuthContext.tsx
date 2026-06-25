@@ -1,8 +1,6 @@
-
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 
 const AuthContext = createContext<any>({});
 
@@ -14,87 +12,56 @@ export const useAuth = () => {
   return context;
 };
 
+const dummyUser = {
+  id: 'local-user-id',
+  email: 'user@interviewninja.local',
+  user_metadata: {
+    full_name: 'Interview Ninja User',
+  },
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<any>(null);
-  const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const [user, setUser] = useState<any>(dummyUser);
+  const [session, setSession] = useState<any>({ user: dummyUser });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    // Synchronously mark auth load complete
+    setLoading(false);
   }, []);
 
   // Email/Password Sign Up
   const signUp = async (email: string, password: string, metadata = {}) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: metadata?.fullName || '',
-          avatar_url: metadata?.avatarUrl || ''
-        },
-        emailRedirectTo: `${window.location.origin}/auth/callback`
-      }
-    });
-    if (error) throw error;
-    return data;
+    return { user: dummyUser };
   };
 
   // Email/Password Sign In
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    if (error) throw error;
-    return data;
+    return { user: dummyUser };
   };
 
   // Sign Out
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    setUser(null);
+    setSession(null);
   };
 
   // Get Current User
   const getCurrentUser = async () => {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error) throw error;
-    return user;
+    return dummyUser;
   };
 
   // Check if Email is Verified
   const isEmailVerified = () => {
-    return user?.email_confirmed_at !== null;
+    return true;
   };
 
   // Get User Profile from Database
   const getUserProfile = async () => {
-    if (!user) return null;
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-    if (error) throw error;
-    return data;
+    return {
+      id: 'local-user-id',
+      full_name: 'Interview Ninja User',
+    };
   };
 
   const value = {
@@ -106,7 +73,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signOut,
     getCurrentUser,
     isEmailVerified,
-    getUserProfile
+    getUserProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

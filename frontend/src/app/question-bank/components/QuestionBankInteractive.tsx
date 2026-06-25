@@ -9,18 +9,7 @@ import QuestionStatsPanel from './QuestionStatsPanel';
 import BulkActionsBar from './BulkActionsBar';
 import SortControls from './SortControls';
 import EmptyState from './EmptyState';
-
-
-interface Question {
-  id: string;
-  questionText: string;
-  category: 'Interview' | 'CV Skill';
-  subType: string;
-  difficulty: 'Easy' | 'Medium' | 'Hard';
-  dateEncountered: string;
-  lastReviewed: string | null;
-  userPerformance?: number;
-}
+import { questionsService, Question } from '@/lib/services/questionsService';
 
 interface FilterOptions {
   category: string;
@@ -29,158 +18,6 @@ interface FilterOptions {
   searchQuery: string;
 }
 
-const mockQuestions: Question[] = [
-  {
-    id: 'q1',
-    questionText: 'Design a distributed rate limiter system that can handle 100,000 requests per second across multiple data centers with eventual consistency guarantees.',
-    category: 'Interview',
-    subType: 'System Design',
-    difficulty: 'Hard',
-    dateEncountered: '2026-01-28',
-    lastReviewed: '2026-02-01',
-    userPerformance: 4,
-  },
-  {
-    id: 'q2',
-    questionText: 'Implement a binary search tree with insert, delete, and search operations. Analyze the time complexity for each operation.',
-    category: 'Interview',
-    subType: 'Data Structures',
-    difficulty: 'Medium',
-    dateEncountered: '2026-01-27',
-    lastReviewed: '2026-01-30',
-    userPerformance: 5,
-  },
-  {
-    id: 'q3',
-    questionText: 'Explain the architecture and training process for YOLO (You Only Look Once) object detection model. How does it differ from R-CNN family of models?',
-    category: 'CV Skill',
-    subType: 'Deep Learning Vision',
-    difficulty: 'Hard',
-    dateEncountered: '2026-01-26',
-    lastReviewed: null,
-    userPerformance: 3,
-  },
-  {
-    id: 'q4',
-    questionText: 'Describe a situation where you had to make a difficult technical decision with limited information. What was your approach and outcome?',
-    category: 'Interview',
-    subType: 'Behavioral',
-    difficulty: 'Medium',
-    dateEncountered: '2026-01-25',
-    lastReviewed: '2026-01-29',
-    userPerformance: 4,
-  },
-  {
-    id: 'q5',
-    questionText: 'Implement the Canny edge detection algorithm from scratch. Explain each step and its mathematical foundation.',
-    category: 'CV Skill',
-    subType: 'Classical CV',
-    difficulty: 'Hard',
-    dateEncountered: '2026-01-24',
-    lastReviewed: '2026-01-31',
-    userPerformance: 3,
-  },
-  {
-    id: 'q6',
-    questionText: 'Write a function to find the longest palindromic substring in a given string. Optimize for both time and space complexity.',
-    category: 'Interview',
-    subType: 'Algorithms',
-    difficulty: 'Medium',
-    dateEncountered: '2026-01-23',
-    lastReviewed: '2026-01-28',
-    userPerformance: 5,
-  },
-  {
-    id: 'q7',
-    questionText: 'Design a real-time video analytics pipeline for detecting and tracking multiple objects in surveillance footage. Consider scalability and latency requirements.',
-    category: 'CV Skill',
-    subType: 'CV Deployment',
-    difficulty: 'Hard',
-    dateEncountered: '2026-01-22',
-    lastReviewed: null,
-    userPerformance: 4,
-  },
-  {
-    id: 'q8',
-    questionText: 'Explain how you would design a URL shortening service like bit.ly. Include database schema, API design, and scaling considerations.',
-    category: 'Interview',
-    subType: 'System Design',
-    difficulty: 'Medium',
-    dateEncountered: '2026-01-21',
-    lastReviewed: '2026-01-27',
-    userPerformance: 4,
-  },
-  {
-    id: 'q9',
-    questionText: 'Implement a custom training loop for a semantic segmentation model using PyTorch. Include data augmentation, loss calculation, and metrics tracking.',
-    category: 'CV Skill',
-    subType: 'CV Training Strategy',
-    difficulty: 'Hard',
-    dateEncountered: '2026-01-20',
-    lastReviewed: '2026-01-26',
-    userPerformance: 5,
-  },
-  {
-    id: 'q10',
-    questionText: 'Tell me about a time when you had to lead a team through a challenging project. How did you handle conflicts and ensure successful delivery?',
-    category: 'Interview',
-    subType: 'Leadership',
-    difficulty: 'Medium',
-    dateEncountered: '2026-01-19',
-    lastReviewed: '2026-01-25',
-    userPerformance: 4,
-  },
-  {
-    id: 'q11',
-    questionText: 'Design and implement a LRU (Least Recently Used) cache with O(1) time complexity for both get and put operations.',
-    category: 'Interview',
-    subType: 'Data Structures',
-    difficulty: 'Hard',
-    dateEncountered: '2026-01-18',
-    lastReviewed: null,
-    userPerformance: 3,
-  },
-  {
-    id: 'q12',
-    questionText: 'Explain the concept of transfer learning in computer vision. Provide examples of when to use fine-tuning vs feature extraction.',
-    category: 'CV Skill',
-    subType: 'Deep Learning Vision',
-    difficulty: 'Medium',
-    dateEncountered: '2026-01-17',
-    lastReviewed: '2026-01-24',
-    userPerformance: 5,
-  },
-  {
-    id: 'q13',
-    questionText: 'Implement Dijkstra\'s shortest path algorithm and analyze its time complexity. How would you optimize it for sparse graphs?',
-    category: 'Interview',
-    subType: 'Algorithms',
-    difficulty: 'Medium',
-    dateEncountered: '2026-01-16',
-    lastReviewed: '2026-01-23',
-    userPerformance: 4,
-  },
-  {
-    id: 'q14',
-    questionText: 'Design a model optimization strategy to reduce inference time by 50% while maintaining 95% of original accuracy for a mobile deployment.',
-    category: 'CV Skill',
-    subType: 'CV Optimization',
-    difficulty: 'Hard',
-    dateEncountered: '2026-01-15',
-    lastReviewed: '2026-01-22',
-    userPerformance: 4,
-  },
-  {
-    id: 'q15',
-    questionText: 'Describe your approach to mentoring junior engineers. How do you balance guidance with allowing them to learn from mistakes?',
-    category: 'Interview',
-    subType: 'Leadership',
-    difficulty: 'Easy',
-    dateEncountered: '2026-01-14',
-    lastReviewed: '2026-01-21',
-    userPerformance: 5,
-  },
-];
 
 export default function QuestionBankInteractive() {
   const router = useRouter();
@@ -196,12 +33,26 @@ export default function QuestionBankInteractive() {
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
   const [selectAll, setSelectAll] = useState(false);
 
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     setIsHydrated(true);
+    async function loadQuestions() {
+      try {
+        const data = await questionsService.getAll();
+        setQuestions(data);
+      } catch (err) {
+        console.error('Failed to load questions:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadQuestions();
   }, []);
 
   const filteredQuestions = useMemo(() => {
-    let filtered = [...mockQuestions];
+    let filtered = [...questions];
 
     if (filters.category !== 'All Categories') {
       filtered = filtered.filter((q) => q.category === filters.category);
@@ -265,23 +116,23 @@ export default function QuestionBankInteractive() {
     });
 
     return filtered;
-  }, [filters, sortBy, sortOrder]);
+  }, [questions, filters, sortBy, sortOrder]);
 
   const stats = useMemo(() => {
-    const total = mockQuestions.length;
-    const interview = mockQuestions.filter((q) => q.category === 'Interview').length;
-    const cvSkill = mockQuestions.filter((q) => q.category === 'CV Skill').length;
-    const easy = mockQuestions.filter((q) => q.difficulty === 'Easy').length;
-    const medium = mockQuestions.filter((q) => q.difficulty === 'Medium').length;
-    const hard = mockQuestions.filter((q) => q.difficulty === 'Hard').length;
+    const total = questions.length;
+    const interview = questions.filter((q) => q.category === 'Interview').length;
+    const cvSkill = questions.filter((q) => q.category === 'CV Skill').length;
+    const easy = questions.filter((q) => q.difficulty === 'Easy').length;
+    const medium = questions.filter((q) => q.difficulty === 'Medium').length;
+    const hard = questions.filter((q) => q.difficulty === 'Hard').length;
 
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
-    const reviewedThisWeek = mockQuestions.filter(
+    const reviewedThisWeek = questions.filter(
       (q) => q.lastReviewed && new Date(q.lastReviewed) >= weekAgo
     ).length;
 
-    const performanceScores = mockQuestions
+    const performanceScores = questions
       .filter((q) => q.userPerformance !== undefined)
       .map((q) => q.userPerformance!);
     const avgPerformance =
@@ -299,7 +150,7 @@ export default function QuestionBankInteractive() {
       reviewedThisWeek,
       averagePerformance: avgPerformance,
     };
-  }, []);
+  }, [questions]);
 
   const handleFilterChange = (newFilters: FilterOptions) => {
     setFilters(newFilters);
@@ -341,7 +192,7 @@ export default function QuestionBankInteractive() {
   };
 
   const handleExport = () => {
-    const selectedQuestionsData = mockQuestions.filter((q) =>
+    const selectedQuestionsData = questions.filter((q) =>
       selectedQuestions.includes(q.id)
     );
 
@@ -393,7 +244,7 @@ export default function QuestionBankInteractive() {
     filters.dateRange !== 'All Time' ||
     filters.searchQuery !== '';
 
-  if (!isHydrated) {
+  if (!isHydrated || loading) {
     return (
       <div className="min-h-screen bg-background pt-[60px]">
         <div className="max-w-[1400px] mx-auto px-24 py-36">

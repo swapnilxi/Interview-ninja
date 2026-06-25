@@ -1,121 +1,126 @@
 'use client';
 
-import { createClient } from '@/lib/supabase/client';
-
 export interface Question {
   id: string;
   questionText: string;
-  category: string;
+  category: 'Interview' | 'CV Skill';
   subType: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
-  questionType: string;
+  questionType?: string;
   dateEncountered: string;
   lastReviewed: string | null;
   userPerformance?: number;
 }
 
-function isSchemaError(error: any): boolean {
-  if (!error) return false;
-  if (error.code && typeof error.code === 'string') {
-    const errorClass = error.code.substring(0, 2);
-    if (errorClass === '42' || errorClass === '08') return true;
-    if (errorClass === '23') return false;
-  }
-  if (error.message) {
-    const schemaErrorPatterns = [
-      /relation.*does not exist/i,
-      /column.*does not exist/i,
-      /syntax error/i,
-    ];
-    return schemaErrorPatterns.some((p) => p.test(error.message));
-  }
-  return false;
-}
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-function mapRow(row: any): Question {
+function mapBackendQuestion(q: any): Question {
+  // Map category code to frontend values
+  let category: 'Interview' | 'CV Skill' = 'Interview';
+  if (q.category === 'cv_skill') {
+    category = 'CV Skill';
+  }
+
+  // Normalize difficulty casing
+  let difficulty: 'Easy' | 'Medium' | 'Hard' = 'Medium';
+  const diffLower = String(q.difficulty).toLowerCase();
+  if (diffLower === 'easy') {
+    difficulty = 'Easy';
+  } else if (diffLower === 'hard') {
+    difficulty = 'Hard';
+  }
+
   return {
-    id: row.id,
-    questionText: row.question_text,
-    category: row.category,
-    subType: row.sub_type,
-    difficulty: row.difficulty as 'Easy' | 'Medium' | 'Hard',
-    questionType: row.question_type,
-    dateEncountered: row.date_encountered,
-    lastReviewed: row.last_reviewed,
-    userPerformance: row.user_performance,
+    id: String(q.id),
+    questionText: q.question_text,
+    category,
+    subType: q.sub_type,
+    difficulty,
+    questionType: q.question_type || q.sub_type,
+    dateEncountered: q.question_date,
+    lastReviewed: q.last_reviewed || null,
+    userPerformance: q.user_performance ?? undefined,
   };
 }
 
 export const questionsService = {
   async getAll(): Promise<Question[]> {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
-
     try {
-      const { data, error } = await supabase
-        .from('questions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        if (isSchemaError(error)) throw error;
-        return [];
+      const res = await fetch(`${API_BASE_URL}/questions`);
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
       }
-
-      return data?.map(mapRow) || [];
-    } catch (error: any) {
-      if (isSchemaError(error)) throw error;
+      const data = await res.json();
+      return data.map(mapBackendQuestion);
+    } catch (error) {
+      console.error('Failed to fetch questions:', error);
       return [];
     }
   },
 
   async upsertMany(questions: Omit<Question, 'id'>[]): Promise<void> {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
     try {
-      const rows = questions.map((q) => ({
-        user_id: user.id,
-        question_text: q.questionText,
-        category: q.category,
-        sub_type: q.subType,
-        difficulty: q.difficulty,
-        question_type: q.questionType,
-        date_encountered: q.dateEncountered,
-        last_reviewed: q.lastReviewed,
-        user_performance: q.userPerformance,
-      }));
+      // 1. Create a session first
+      const sessionRes = await fetch(`${API_BASE_URL}/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          difficulty_hint: 'mixed',
+          cv_present: false,
+          jd_present: false,
+        }),
+      });
+      if (!sessionRes.ok) throw new Error('Failed to create session');
+      const { session_id } = await sessionRes.json();
 
-      const { error } = await supabase.from('questions').insert(rows);
+      // 2. Map questions format to backend QuestionIn
+      const backendQuestions = questions.map((q) => {
+        let categoryCode = 'interview';
+        if (q.category === 'CV Skill') {
+          categoryCode = 'cv_skill';
+        }
+        
+        return {
+          section: 'A', // Default section
+          number: 1, // Placeholder number
+          category: categoryCode,
+          sub_type: q.subType,
+          difficulty: q.difficulty.toLowerCase(),
+          topics: [],
+          question_text: q.questionText,
+          question_type: q.questionType || q.subType,
+        };
+      });
 
-      if (error) {
-        if (isSchemaError(error)) throw error;
-      }
-    } catch (error: any) {
-      if (isSchemaError(error)) throw error;
+      // 3. Post questions batch
+      const res = await fetch(`${API_BASE_URL}/sessions/questions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id,
+          questions: backendQuestions,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to insert questions batch');
+    } catch (error) {
+      console.error('Failed to upsert questions:', error);
     }
   },
 
   async updatePerformance(id: string, performance: number): Promise<void> {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
     try {
-      const { error } = await supabase
-        .from('questions')
-        .update({ user_performance: performance, last_reviewed: new Date().toISOString().split('T')[0] })
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-      if (error) {
-        if (isSchemaError(error)) throw error;
+      const res = await fetch(`${API_BASE_URL}/questions/${id}/performance`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_performance: performance,
+        }),
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
       }
-    } catch (error: any) {
-      if (isSchemaError(error)) throw error;
+    } catch (error) {
+      console.error(`Failed to update performance for question ${id}:`, error);
     }
   },
 };

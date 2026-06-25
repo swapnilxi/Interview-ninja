@@ -5,9 +5,9 @@ This service exposes HTTP endpoints for:
 - Fetching previous questions (with filters)
 - Exporting a day's questions in Markdown
 - Creating sessions and persisting generated questions
-
-The actual LLM/agent call is expected to happen in a separate
-component or within additional endpoints you add later.
+- Updating question performance ratings
+- Saving and fetching daily session answers
+- Managing API models and key settings
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from datetime import date
 from typing import List, Literal, Optional
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from interview_ninja import __version__ as core_version
@@ -26,11 +27,26 @@ from interview_ninja.db import (
     fetch_questions,
     insert_questions,
     init_db,
+    update_question_performance,
+    save_session_progress,
+    fetch_session_progress,
+    fetch_progress_stats,
+    fetch_settings,
+    save_settings,
 )
 from interview_ninja.export_md import render_markdown_for_day
 
 
 app = FastAPI(title="Interview-Ninja API", version=core_version)
+
+# Enable CORS for frontend API communications
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")
@@ -65,6 +81,7 @@ class QuestionIn(BaseModel):
     difficulty: str
     topics: List[str] = Field(default_factory=list)
     question_text: str
+    question_type: Optional[str] = None
 
 
 class QuestionOut(BaseModel):
@@ -78,11 +95,37 @@ class QuestionOut(BaseModel):
     difficulty: str
     topics: List[str]
     question_text: str
+    user_performance: Optional[int] = None
+    last_reviewed: Optional[str] = None
+    question_type: Optional[str] = None
 
 
 class QuestionBatchCreate(BaseModel):
     session_id: int
     questions: List[QuestionIn]
+
+
+class PerformanceUpdatePayload(BaseModel):
+    user_performance: int
+
+
+class SessionAnswerIn(BaseModel):
+    questionId: Optional[str] = None
+    questionText: str
+    answerText: str
+    category: str
+    difficulty: str
+    questionType: str
+    isCompleted: bool
+    sessionDate: str
+
+
+class UserSettingsSchema(BaseModel):
+    questionModel: str
+    answerModel: str
+    openaiKey: str
+    geminiKey: str
+    anthropicKey: str
 
 
 @app.get("/health")
@@ -156,9 +199,49 @@ async def list_questions(
                 difficulty=r.difficulty,
                 topics=topics,
                 question_text=r.question_text,
+                user_performance=r.user_performance,
+                last_reviewed=r.last_reviewed,
+                question_type=r.question_type or r.sub_type,
             )
         )
     return out
+
+
+@app.patch("/questions/{question_id}/performance")
+async def update_performance_endpoint(question_id: int, payload: PerformanceUpdatePayload) -> dict:
+    update_question_performance(
+        question_id=question_id,
+        user_performance=payload.user_performance,
+        last_reviewed=date.today().isoformat(),
+    )
+    return {"status": "success"}
+
+
+@app.post("/session-progress")
+async def save_session_progress_endpoint(payload: List[SessionAnswerIn]) -> dict:
+    save_session_progress([item.model_dump() for item in payload])
+    return {"status": "success"}
+
+
+@app.get("/session-progress")
+async def get_session_progress_endpoint(session_date: str = Query(...)) -> List[dict]:
+    return fetch_session_progress(session_date)
+
+
+@app.get("/session-progress/stats")
+async def get_progress_stats_endpoint() -> dict:
+    return fetch_progress_stats()
+
+
+@app.get("/settings", response_model=UserSettingsSchema)
+async def get_settings_endpoint() -> UserSettingsSchema:
+    return UserSettingsSchema(**fetch_settings())
+
+
+@app.post("/settings")
+async def save_settings_endpoint(payload: UserSettingsSchema) -> dict:
+    save_settings(payload.model_dump())
+    return {"status": "success"}
 
 
 @app.get("/export", response_model=str)
@@ -169,7 +252,8 @@ async def export_markdown(
             "Date for which to export questions (YYYY-MM-DD). If omitted, "
             "today's date is used."
         ),
-    ) -> str:
+    )
+) -> str:
     if session_date is None:
         session_date = date.today().isoformat()
 

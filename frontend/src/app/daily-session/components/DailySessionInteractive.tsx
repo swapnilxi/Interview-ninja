@@ -1,0 +1,614 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Icon from '@/components/ui/AppIcon';
+import { questionsService, Question } from '@/lib/services/questionsService';
+import { sessionService, SessionAnswer } from '@/lib/services/sessionService';
+
+const DEFAULT_QUESTIONS: Omit<Question, 'id'>[] = [
+  {
+    questionText: 'Implement a LRU Cache with O(1) time complexity for both get and put operations.',
+    category: 'Interview',
+    subType: 'Data Structures',
+    difficulty: 'Hard',
+    questionType: 'DSA',
+    dateEncountered: new Date().toISOString().split('T')[0],
+    lastReviewed: null,
+  },
+  {
+    questionText: 'Design a rate limiter backend service that limits requests per user ID to 100 requests per minute.',
+    category: 'Interview',
+    subType: 'System Design (Mid-Scale)',
+    difficulty: 'Medium',
+    questionType: 'System Design',
+    dateEncountered: new Date().toISOString().split('T')[0],
+    lastReviewed: null,
+  },
+  {
+    questionText: 'Your production ML model is suffering from covariate shift between training and client deployment. How would you debug and fix this?',
+    category: 'Interview',
+    subType: 'Scenario-Based Bug',
+    difficulty: 'Medium',
+    questionType: 'ML Scenario',
+    dateEncountered: new Date().toISOString().split('T')[0],
+    lastReviewed: null,
+  },
+  {
+    questionText: 'Design a distributed search indexing and ranking system like Elasticsearch that can handle 10,000 document additions per second.',
+    category: 'Interview',
+    subType: 'Large-Scale System Design',
+    difficulty: 'Hard',
+    questionType: 'Large-Scale Design',
+    dateEncountered: new Date().toISOString().split('T')[0],
+    lastReviewed: null,
+  },
+  {
+    questionText: 'Describe a situation where you had a significant disagreement with a product manager regarding technical debt. How did you resolve it?',
+    category: 'Interview',
+    subType: 'Leadership',
+    difficulty: 'Easy',
+    questionType: 'Behavioral',
+    dateEncountered: new Date().toISOString().split('T')[0],
+    lastReviewed: null,
+  },
+  {
+    questionText: 'Explain the mathematical difference between intrinsic and extrinsic camera matrices and how they are estimated.',
+    category: 'CV Skill',
+    subType: 'Classical CV',
+    difficulty: 'Hard',
+    questionType: 'Camera Geometry',
+    dateEncountered: new Date().toISOString().split('T')[0],
+    lastReviewed: null,
+  },
+  {
+    questionText: 'What is the role of Anchor Boxes in object detectors like Faster R-CNN? How do you optimize their sizes for custom datasets?',
+    category: 'CV Skill',
+    subType: 'Deep Learning Vision',
+    difficulty: 'Medium',
+    questionType: 'Object Detection',
+    dateEncountered: new Date().toISOString().split('T')[0],
+    lastReviewed: null,
+  },
+  {
+    questionText: 'Describe the trade-offs of using post-training quantization vs quantization-aware training for mobile CNN inference.',
+    category: 'CV Skill',
+    subType: 'CV Training Strategy',
+    difficulty: 'Medium',
+    questionType: 'Quantization',
+    dateEncountered: new Date().toISOString().split('T')[0],
+    lastReviewed: null,
+  },
+  {
+    questionText: 'How do you detect and handle labeling bias in a semantic segmentation dataset of street scenes?',
+    category: 'CV Skill',
+    subType: 'Dataset Quality',
+    difficulty: 'Easy',
+    questionType: 'Dataset Bias',
+    dateEncountered: new Date().toISOString().split('T')[0],
+    lastReviewed: null,
+  },
+  {
+    questionText: 'How would you optimize inference latency for a Transformer-based object detection model on edge devices like Jetson Nano?',
+    category: 'CV Skill',
+    subType: 'CV Optimization',
+    difficulty: 'Hard',
+    questionType: 'Edge Optimization',
+    dateEncountered: new Date().toISOString().split('T')[0],
+    lastReviewed: null,
+  },
+];
+
+const EXPLANATIONS: Record<number, { answer: string; detail: string }> = {
+  0: {
+    answer: "Use a Doubly Linked List coupled with a Hash Map. The Hash Map stores node references mapping from key, yielding O(1) search. The Doubly Linked List maintains usage frequency order, allowing node updates or evictions in O(1).",
+    detail: "To code get(key): lookup node in hash map. If it exists, move it to the head of the DLL (most recently used) and return its value. Else, return -1.\nTo code put(key, value): if key exists, update value and move node to head. Else: create a node, insert to head, add to map. If capacity is exceeded, delete the tail node from DLL and delete its key entry from the map."
+  },
+  1: {
+    answer: "Use Token Bucket or Leaky Bucket algorithm backed by Redis. For every request, parse user ID, fetch the active bucket key from Redis, evaluate the timestamp delta to credit tokens, and decrement token count if space permits.",
+    detail: "Redis hash fields `last_updated` (float timestamp) and `tokens` (integer). Rate check pipeline:\n1. tokens_to_add = (current_timestamp - last_updated) * fill_rate\n2. current_tokens = min(bucket_capacity, tokens + tokens_to_add)\n3. If current_tokens >= 1, decrement by 1, save, and return True. Else, return False."
+  },
+  2: {
+    answer: "Adversarial validation or statistical density evaluation. Train a classifier to distinguish training dataset features from production telemetry data. If accuracy is high, covariate shift exists.",
+    detail: "Mitigate by:\n- Importance weighting: calculate the ratio of production-to-training sample density to weight the loss during model training.\n- Data acquisition: continuously sample production queries that have high adversarial validation score, label them, and update training baseline."
+  },
+  3: {
+    answer: "Segment queries into ingestion pipeline (Kafka buffer + Elasticsearch nodes) and search pipeline (Coordination nodes + replica shards). Utilize segment merging and inverse document frequency indexing.",
+    detail: "Document ingestion:\n- Kafka buffer stores incoming documents to absorb bursts.\n- Primary shards index records and build inverted index structures.\n- Segments are regularly merged in the background to minimize query lookups."
+  },
+  4: {
+    answer: "Frame disagreements around metrics, user impact, and engineering velocity. Present structural issues as debt that slows down feature delivery times rather than aesthetic cleanups.",
+    detail: "STAR method:\n- Situation: Technical debt in critical payments module threatened deadline velocity.\n- Task: Reach alignment with the PM who advocated for adding new conversion items instead.\n- Action: Plotted a metrics graph proving technical debt accounted for 40% of bug tickets. Proposed a compromise to dedicate 20% of every sprint for refactoring.\n- Result: Improved sprint delivery reliability by 25% and bugs dropped significantly."
+  },
+  5: {
+    answer: "Intrinsic matrix (K) represents internal camera attributes (focal length, optical center, skew). Extrinsic matrix (R|T) translates camera Coordinates to world Coordinates. They are estimated via homography patterns.",
+    detail: "Zhang's method uses a chessboard calibration pattern. Intrinsic parameters are estimated analytically using closed-form solutions by mapping chessboard corners in multiple images. Extrinsic parameters are optimized using Levenberg-Marquardt non-linear minimization."
+  },
+  6: {
+    answer: "Anchor Boxes act as bounding box scale frameworks. YOLO/Faster R-CNN slide anchors over feature map coordinates. Optimize sizes using K-means clustering over dataset ground truth bounding boxes.",
+    detail: "Run K-means clustering over all bounding box dimensions (width, height) in the training dataset using Intersection over Union (IoU) as the distance metric. Select the K centroids as the optimized anchor sizes to align with dataset target scales."
+  },
+  7: {
+    answer: "Post-training quantization (PTQ) converts weights after training, yielding minor loss of accuracy but fast configuration. Quantization-aware training (QAT) simulates quantization errors during backpropagation, yielding optimal accuracy.",
+    detail: "PTQ: Uses calibration datasets to find weight scale ranges. Highly effective for large models, but sometimes yields accuracy loss in smaller CV backbones.\nQAT: Backpropagates weights in floating point but performs simulated fake quantization on forward passes, forcing model weights to adapt to lower precision."
+  },
+  8: {
+    answer: "Analyze performance per-class and run labeling validation checks. Intersect labeled masks from multiple annotators to evaluate Jaccard/IoU consistency.",
+    detail: "Mitigate bias by:\n- Balance resampling: upsample under-represented environments (e.g. night-time street scenes).\n- Multi-annotator consensus: use voting or average thresholds to filter bad labels."
+  },
+  9: {
+    answer: "Apply weight pruning, Layer fusion (fuse Conv + BatchNorm + ReLU), and TensorRT FP16 quantization compile targeting Jetson GPU hardware constraints.",
+    detail: "Optimization steps:\n1. TensorRT compilation: compile PyTorch/ONNX model using FP16 quantization.\n2. Layer fusion: combine batch-normalization weights directly into Conv scale arrays to avoid auxiliary layer activations.\n3. KV-cache sizing: use optimized GPU static memory allocation for self-attention caches."
+  }
+};
+
+export default function DailySessionInteractive() {
+  const router = useRouter();
+  const [sessionActive, setSessionActive] = useState(false);
+  const [sessionDate, setSessionDate] = useState('');
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+  const [viewAll, setViewAll] = useState(false);
+
+  // Setup form fields
+  const [difficulty, setDifficulty] = useState('Mixed');
+  const [cvText, setCvText] = useState('');
+  const [jdText, setJdText] = useState('');
+
+  // AI Hint state
+  const [showAiAnswer, setShowAiAnswer] = useState(false);
+  const [showAiExplain, setShowAiExplain] = useState(false);
+
+  // Load active session from localStorage if user refreshes
+  useEffect(() => {
+    const activeDate = localStorage.getItem('ninja_active_session_date');
+    if (activeDate) {
+      loadSessionData(activeDate);
+    }
+  }, []);
+
+  const loadSessionData = async (dateStr: string) => {
+    setLoading(true);
+    try {
+      const qData = await questionsService.getAll();
+      const todayQs = qData.filter(q => q.dateEncountered === dateStr);
+      if (todayQs.length > 0) {
+        setQuestions(todayQs);
+        setSessionDate(dateStr);
+        setSessionActive(true);
+
+        // Fetch saved answers
+        const progress = await sessionService.getSessionByDate(dateStr);
+        const ansMap: Record<string, string> = {};
+        progress.forEach(p => {
+          ansMap[p.questionText] = p.answerText;
+        });
+        setAnswers(ansMap);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStartSession = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      // 1. Create session in backend SQLite
+      const res = await fetch('http://localhost:8000/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          difficulty_hint: difficulty,
+          cv_present: !!cvText,
+          jd_present: !!jdText,
+        }),
+      });
+      const data = await res.json();
+      const newSessionId = data.session_id;
+      const newSessionDate = data.session_date;
+
+      // 2. Map default questions to backend payload
+      const payloadQuestions = DEFAULT_QUESTIONS.map((q, idx) => ({
+        section: idx < 5 ? 'A' : 'B',
+        number: (idx % 5) + 1,
+        category: q.category === 'Interview' ? 'interview' : 'cv_skill',
+        sub_type: q.subType,
+        difficulty: difficulty !== 'Mixed' ? difficulty.toLowerCase() : q.difficulty.toLowerCase(),
+        topics: [q.questionType || q.subType],
+        question_text: q.questionText,
+      }));
+
+      // 3. Save questions batch in backend SQLite
+      await fetch('http://localhost:8000/sessions/questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: newSessionId,
+          questions: payloadQuestions,
+        }),
+      });
+
+      // 4. Update local state
+      localStorage.setItem('ninja_active_session_date', newSessionDate);
+      await loadSessionData(newSessionDate);
+    } catch (err) {
+      console.error('Failed to initialize session:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveAnswer = async () => {
+    if (questions.length === 0) return;
+    const currentQ = questions[currentIndex];
+    const answerText = answers[currentQ.questionText] || '';
+
+    const payload: SessionAnswer = {
+      questionId: currentQ.id,
+      questionText: currentQ.questionText,
+      answerText,
+      category: currentQ.category === 'Interview' ? 'interview' : 'cv_skill',
+      difficulty: currentQ.difficulty.toLowerCase(),
+      questionType: currentQ.questionType || currentQ.subType,
+      isCompleted: !!answerText.trim(),
+      sessionDate,
+    };
+
+    setLoading(true);
+    try {
+      await sessionService.saveSessionAnswers([payload]);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const res = await fetch(`http://localhost:8000/export?session_date=${sessionDate}`);
+      if (!res.ok) throw new Error('No questions generated for this date');
+      const text = await res.json();
+
+      const blob = new Blob([text], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `interview-ninja-session-${sessionDate}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to export questions. Ensure you have generated the session questions first.');
+    }
+  };
+
+  const handleClearSession = () => {
+    localStorage.removeItem('ninja_active_session_date');
+    setSessionActive(false);
+    setQuestions([]);
+    setAnswers({});
+    setCurrentIndex(0);
+    setViewAll(false);
+  };
+
+  const activeQuestion = questions[currentIndex];
+  const activeExplanation = EXPLANATIONS[currentIndex] || { answer: "Study the topic and write down your solution.", detail: "" };
+
+  if (loading && !sessionActive) {
+    return (
+      <div className="flex items-center justify-center h-[500px]">
+        <div className="w-48 h-48 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Phase 1: Setup Form
+  if (!sessionActive) {
+    return (
+      <div className="max-w-3xl mx-auto bg-card rounded-lg p-36 shadow-lg border border-border mt-36">
+        <h2 className="font-heading text-2xl font-semibold text-foreground mb-24 flex items-center gap-12">
+          <Icon name="AcademicCapIcon" size={24} variant="outline" className="text-primary" />
+          Setup Today's Daily Session
+        </h2>
+        <form onSubmit={handleStartSession} className="space-y-24">
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-6">Difficulty Level</label>
+            <div className="grid grid-cols-4 gap-12">
+              {['Easy', 'Medium', 'Hard', 'Mixed'].map((diff) => (
+                <button
+                  key={diff}
+                  type="button"
+                  onClick={() => setDifficulty(diff)}
+                  className={`
+                    py-12 rounded-md border text-sm font-medium transition-smooth focus-ring
+                    ${difficulty === diff 
+                      ? 'bg-primary border-primary text-primary-foreground' 
+                      : 'bg-input border-border text-muted-foreground hover:border-muted-foreground'
+                    }
+                  `}
+                >
+                  {diff}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="cv-text" className="block text-sm font-medium text-foreground mb-6">
+              Paste Resume / CV (Optional)
+            </label>
+            <textarea
+              id="cv-text"
+              rows={4}
+              value={cvText}
+              onChange={(e) => setCvText(e.target.value)}
+              placeholder="Paste CV text here to make questions resume-aware..."
+              className="w-full rounded-md border border-border bg-input px-12 py-12 text-sm text-foreground focus-ring placeholder:text-muted-foreground"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="jd-text" className="block text-sm font-medium text-foreground mb-6">
+              Paste Job Description (Optional)
+            </label>
+            <textarea
+              id="jd-text"
+              rows={4}
+              value={jdText}
+              onChange={(e) => setJdText(e.target.value)}
+              placeholder="Paste target Job Description here to customize focus areas..."
+              className="w-full rounded-md border border-border bg-input px-12 py-12 text-sm text-foreground focus-ring placeholder:text-muted-foreground"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-12 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-smooth flex items-center justify-center gap-12 focus-ring disabled:opacity-50"
+          >
+            {loading ? (
+              <span className="w-18 h-18 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+            ) : (
+              <Icon name="PlayIcon" size={18} variant="solid" />
+            )}
+            Generate Daily Session (10 Questions)
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  // Phase 2: Active Session
+  return (
+    <div className="space-y-24 mt-24">
+      {/* Session Controls */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-12 bg-muted/40 p-18 border border-border rounded-lg">
+        <div className="flex items-center gap-12">
+          <span className="px-12 py-6 rounded-md bg-primary/10 text-primary font-code text-sm">
+            Session Date: {sessionDate}
+          </span>
+          <span className="text-sm text-muted-foreground">
+            {Object.keys(answers).length} of 10 answered
+          </span>
+        </div>
+        <div className="flex gap-12">
+          <button
+            onClick={() => setViewAll(!viewAll)}
+            className="px-12 py-6 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted transition-smooth flex items-center gap-6"
+          >
+            <Icon name={viewAll ? "BookOpenIcon" : "ListBulletIcon"} size={16} variant="outline" />
+            {viewAll ? 'Back to Slider' : 'View All Questions'}
+          </button>
+          <button
+            onClick={handleExport}
+            className="px-12 py-6 rounded-md bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/90 transition-smooth flex items-center gap-6"
+          >
+            <Icon name="ArrowDownTrayIcon" size={16} variant="outline" />
+            Export Markdown
+          </button>
+          <button
+            onClick={handleClearSession}
+            className="px-12 py-6 rounded-md border border-error text-error text-sm font-medium hover:bg-error/10 transition-smooth"
+          >
+            Reset Session
+          </button>
+        </div>
+      </div>
+
+      {viewAll ? (
+        // Grid View of All Questions
+        <div className="space-y-18">
+          <h3 className="text-xl font-semibold text-foreground font-heading">All Questions Overview</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-18">
+            {questions.map((q, idx) => (
+              <div key={q.id} className="bg-card border border-border rounded-lg p-18 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-center mb-12">
+                    <span className="text-xs font-caption text-muted-foreground">
+                      Q{idx + 1} • {q.category} ({q.subType})
+                    </span>
+                    <span className="text-xs font-semibold px-9 py-3 rounded-md bg-muted text-foreground">
+                      {q.difficulty}
+                    </span>
+                  </div>
+                  <p className="text-sm font-medium text-foreground leading-relaxed mb-18">
+                    {q.questionText}
+                  </p>
+                </div>
+                <div>
+                  <textarea
+                    rows={3}
+                    placeholder="Type answer details..."
+                    value={answers[q.questionText] || ''}
+                    onChange={(e) => {
+                      const text = e.target.value;
+                      setAnswers(prev => ({ ...prev, [q.questionText]: text }));
+                    }}
+                    className="w-full rounded-md border border-border bg-input px-12 py-6 text-xs text-foreground focus-ring placeholder:text-muted-foreground mb-12"
+                  />
+                  <button
+                    onClick={async () => {
+                      const payload: SessionAnswer = {
+                        questionId: q.id,
+                        questionText: q.questionText,
+                        answerText: answers[q.questionText] || '',
+                        category: q.category === 'Interview' ? 'interview' : 'cv_skill',
+                        difficulty: q.difficulty.toLowerCase(),
+                        questionType: q.questionType || q.subType,
+                        isCompleted: !!(answers[q.questionText] || '').trim(),
+                        sessionDate,
+                      };
+                      await sessionService.saveSessionAnswers([payload]);
+                    }}
+                    className="py-6 px-12 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/95 transition-smooth"
+                  >
+                    Save Answer
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        // Slider View (Single Question Focus)
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-24">
+          <div className="lg:col-span-2 space-y-24">
+            {/* Question Card */}
+            <div className="bg-card border border-border rounded-lg p-24 shadow-md">
+              <div className="flex justify-between items-center mb-18 pb-12 border-b border-border">
+                <span className="text-xs font-semibold px-12 py-6 rounded bg-primary/15 text-primary">
+                  Question {currentIndex + 1} of 10 ({activeQuestion?.category})
+                </span>
+                <span className="text-sm font-caption text-muted-foreground">
+                  Sub-Type: {activeQuestion?.subType}
+                </span>
+              </div>
+              <h3 className="font-heading text-lg font-medium text-foreground mb-18">
+                {activeQuestion?.questionText}
+              </h3>
+            </div>
+
+            {/* Answer Editor */}
+            <div className="bg-card border border-border rounded-lg p-24 shadow-md space-y-18">
+              <label htmlFor="answer-box" className="block font-heading text-base font-medium text-foreground">
+                Your Response
+              </label>
+              <textarea
+                id="answer-box"
+                rows={8}
+                value={answers[activeQuestion?.questionText] || ''}
+                onChange={(e) => {
+                  const text = e.target.value;
+                  setAnswers((prev) => ({
+                    ...prev,
+                    [activeQuestion.questionText]: text,
+                  }));
+                }}
+                placeholder="Formulate your technical answer details here..."
+                className="w-full rounded-md border border-border bg-input px-12 py-12 text-sm text-foreground focus-ring placeholder:text-muted-foreground font-body"
+              />
+              <div className="flex justify-between">
+                <button
+                  onClick={handleSaveAnswer}
+                  className="py-9 px-18 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-smooth flex items-center gap-6"
+                >
+                  <Icon name="CheckIcon" size={16} variant="outline" />
+                  Save/Submit Answer
+                </button>
+                <div className="flex gap-12">
+                  <button
+                    onClick={() => {
+                      setShowAiAnswer(!showAiAnswer);
+                      setShowAiExplain(false);
+                    }}
+                    className="py-9 px-12 rounded-md border border-border text-sm text-foreground hover:bg-muted transition-smooth flex items-center gap-6"
+                  >
+                    <Icon name="LightBulbIcon" size={16} variant="outline" className="text-warning" />
+                    {showAiAnswer ? 'Hide AI Answer' : 'Show AI Answer'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Navigation Slider Controls */}
+            <div className="flex justify-between items-center py-12 border-t border-border">
+              <button
+                disabled={currentIndex === 0}
+                onClick={() => {
+                  setCurrentIndex(currentIndex - 1);
+                  setShowAiAnswer(false);
+                  setShowAiExplain(false);
+                }}
+                className="py-9 px-18 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted transition-smooth disabled:opacity-30 disabled:pointer-events-none flex items-center gap-6"
+              >
+                <Icon name="ArrowLeftIcon" size={16} variant="outline" />
+                Previous Question
+              </button>
+              <button
+                disabled={currentIndex === questions.length - 1}
+                onClick={() => {
+                  setCurrentIndex(currentIndex + 1);
+                  setShowAiAnswer(false);
+                  setShowAiExplain(false);
+                }}
+                className="py-9 px-18 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted transition-smooth disabled:opacity-30 disabled:pointer-events-none flex items-center gap-6"
+              >
+                Next Question
+                <Icon name="ArrowRightIcon" size={16} variant="outline" />
+              </button>
+            </div>
+          </div>
+
+          {/* AI Helper Sidebar Panel */}
+          <div className="space-y-24">
+            {showAiAnswer ? (
+              <div className="bg-card border border-border rounded-lg p-24 shadow-md space-y-18 animate-fade-in">
+                <div className="flex items-center gap-12 pb-12 border-b border-border">
+                  <Icon name="SparklesIcon" size={20} variant="outline" className="text-warning" />
+                  <h4 className="font-heading text-md font-semibold text-foreground">AI Reference Answer</h4>
+                </div>
+                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap font-body">
+                  {activeExplanation.answer}
+                </p>
+                <button
+                  onClick={() => setShowAiExplain(!showAiExplain)}
+                  className="w-full py-9 px-12 rounded-md bg-secondary text-secondary-foreground text-xs font-semibold hover:bg-secondary/95 transition-smooth"
+                >
+                  {showAiExplain ? 'Hide Technical Explanation' : 'Explain More with AI'}
+                </button>
+              </div>
+            ) : (
+              <div className="bg-muted/30 border border-border rounded-lg p-24 text-center">
+                <Icon name="CpuChipIcon" size={32} variant="outline" className="text-muted-foreground/60 mx-auto mb-12" />
+                <h4 className="font-heading text-sm font-medium text-foreground mb-6">AI Coach Available</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Stuck? Click "Show AI Answer" inside the editor panel to retrieve automated guidance prompts.
+                </p>
+              </div>
+            )}
+
+            {showAiAnswer && showAiExplain && (
+              <div className="bg-card border border-border rounded-lg p-24 shadow-md space-y-12 animate-fade-in">
+                <div className="flex items-center gap-6 pb-6 border-b border-border">
+                  <Icon name="CpuChipIcon" size={18} variant="outline" className="text-primary" />
+                  <h5 className="font-heading text-sm font-semibold text-foreground">Technical Breakdown</h5>
+                </div>
+                <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap font-code">
+                  {activeExplanation.detail}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
