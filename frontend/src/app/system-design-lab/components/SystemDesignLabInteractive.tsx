@@ -1,59 +1,700 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import LabCopilot from '@/components/common/LabCopilot';
 import OnDemandSection from '@/components/lab/OnDemandSection';
 import QuizCarousel from '@/components/lab/QuizCarousel';
 
 interface SDTopic {
-  id: string; name: string; brief: string; category: string;
+  id: string;
+  name: string;
+  brief: string;
+  category: string;
   scale: string;
+  difficulty: 'Easy' | 'Easy-Medium' | 'Medium' | 'Medium-Hard' | 'Hard';
+  isLLD?: boolean;
   subtopics: { id: string; name: string; brief: string }[];
 }
 interface SectionState { generated: boolean; generating: boolean; content: string }
 
 const TOPICS: SDTopic[] = [
   {
-    id: 'url-shortener', name: 'URL Shortener (TinyURL)', brief: 'Design a scalable URL shortening service like bit.ly.', category: 'Storage & Hashing', scale: '100M URLs/day',
+    id: 'scaling-fundamentals',
+    name: 'Scaling Fundamentals',
+    brief: 'Learn when and how to scale system tiers vertically or horizontally.',
+    category: 'Fundamentals',
+    scale: 'N/A',
+    difficulty: 'Easy',
     subtopics: [
-      { id: 'url-lld', name: 'LLD: Short URL Generation Strategies', brief: 'Hash vs base62 vs counter-based approaches.' },
-      { id: 'url-analytics', name: 'Analytics Extension', brief: 'Click tracking with time-series storage.' },
+      { id: 'vertical-horizontal', name: 'Vertical vs Horizontal Scaling', brief: 'Scale up vs scale out tradeoffs.' },
+      { id: 'stateless-stateful', name: 'Stateless vs Stateful Services', brief: 'Managing session state across instances.' },
+      { id: 'when-to-scale', name: 'When to Scale What', brief: 'Metric-driven scaling criteria.' },
     ],
   },
   {
-    id: 'rate-limiter', name: 'Rate Limiter', brief: 'Design a distributed rate limiter for API protection.', category: 'Distributed Systems', scale: '1M RPS',
+    id: 'load-balancing',
+    name: 'Load Balancing',
+    brief: 'Distribute network or application traffic across servers.',
+    category: 'Fundamentals',
+    scale: '100k+ RPS',
+    difficulty: 'Easy',
     subtopics: [
-      { id: 'token-bucket', name: 'Token Bucket Algorithm', brief: 'Burst-friendly rate limiting algorithm.' },
-      { id: 'sliding-window-rl', name: 'Sliding Window Counter', brief: 'Precise rate limiting with Redis sorted sets.' },
+      { id: 'l4-l7', name: 'L4 vs L7 Load Balancers', brief: 'Transport vs application layer routing.' },
+      { id: 'lb-algorithms', name: 'Algorithms (Round Robin, Least Connections, Consistent Hashing)', brief: 'Traffic distribution policies.' },
+      { id: 'health-failover', name: 'Health Checks & Failover', brief: 'Detecting and routing around unhealthy instances.' },
     ],
   },
   {
-    id: 'news-feed', name: 'News Feed (Facebook/Twitter)', brief: 'Design a social media feed for millions of users.', category: 'Social Systems', scale: '1B users, 100k posts/sec',
+    id: 'caching-strategies',
+    name: 'Caching Strategies',
+    brief: 'Speed up reads and reduce database load using caching.',
+    category: 'Fundamentals',
+    scale: 'N/A',
+    difficulty: 'Easy-Medium',
     subtopics: [
-      { id: 'fanout', name: 'Fanout On Write vs On Read', brief: 'Push vs pull model trade-offs.' },
-      { id: 'ranking', name: 'Feed Ranking Algorithm', brief: 'Relevance scoring and personalization.' },
+      { id: 'cache-patterns', name: 'Cache-Aside, Write-Through, Write-Behind', brief: 'Data synchronization patterns.' },
+      { id: 'eviction-policies', name: 'Eviction Policies (LRU, LFU, TTL)', brief: 'How cache memory is reclaimed.' },
+      { id: 'invalidation-patterns', name: 'Cache Invalidation Patterns', brief: 'Keeping cache and database in sync.' },
     ],
   },
   {
-    id: 'key-value-store', name: 'Distributed Key-Value Store', brief: 'Design a distributed KV store like DynamoDB or Redis.', category: 'Storage Systems', scale: 'Petabyte scale',
+    id: 'cdn',
+    name: 'CDN (Content Delivery Network)',
+    brief: 'Deliver content quickly from locations close to users.',
+    category: 'Fundamentals',
+    scale: '100M+ Req/day',
+    difficulty: 'Easy',
     subtopics: [
-      { id: 'consistent-hashing', name: 'Consistent Hashing', brief: 'Distributing keys with minimal remapping.' },
-      { id: 'replication', name: 'Replication & Consensus (Raft)', brief: 'Leader election and log replication.' },
+      { id: 'cdn-how-works', name: 'How CDNs Work (Pull vs Push)', brief: 'Origin offloading and content delivery.' },
+      { id: 'cache-hierarchy', name: 'Cache Hierarchy & Edge Locations', brief: 'Regional caches and edge PoPs.' },
+      { id: 'cdn-vs-origin', name: 'When to Use CDN vs Origin', brief: 'Static assets vs dynamic endpoints.' },
     ],
   },
   {
-    id: 'search-engine', name: 'Search Engine (Google)', brief: 'Design a web-scale search engine with ranking.', category: 'Search & Indexing', scale: '8.5B searches/day',
+    id: 'database-fundamentals',
+    name: 'Database Fundamentals',
+    brief: 'Understand storage engines, indexing, and transactional guarantees.',
+    category: 'Fundamentals',
+    scale: 'N/A',
+    difficulty: 'Easy-Medium',
     subtopics: [
-      { id: 'inverted-index', name: 'Inverted Index Construction', brief: 'MapReduce-based indexing pipeline.' },
-      { id: 'pagerank', name: 'PageRank & Link Analysis', brief: 'Graph-based authority scoring.' },
+      { id: 'sql-vs-nosql', name: 'SQL vs NoSQL (when to pick what)', brief: 'Relational vs non-relational storage.' },
+      { id: 'acid-vs-base', name: 'ACID vs BASE', brief: 'Transactional safety vs availability.' },
+      { id: 'indexing-query-opt', name: 'Indexing Strategies & Query Optimization', brief: 'B-Trees, Hash indexes, and execution plans.' },
     ],
   },
   {
-    id: 'video-streaming', name: 'Video Streaming (Netflix/YouTube)', brief: 'Design a global video streaming platform.', category: 'Media Systems', scale: '250M concurrent users',
+    id: 'database-sharding',
+    name: 'Database Sharding',
+    brief: 'Partition data across multiple database instances.',
+    category: 'Fundamentals',
+    scale: '10TB+ Data',
+    difficulty: 'Medium',
     subtopics: [
-      { id: 'adaptive-streaming', name: 'Adaptive Bitrate Streaming', brief: 'HLS/DASH quality adaptation algorithms.' },
-      { id: 'cdn-design', name: 'CDN Architecture', brief: 'Edge caching and PoP selection strategy.' },
+      { id: 'sharding-strategies', name: 'Sharding Strategies (hash, range, geo)', brief: 'Horizontal partitioning methods.' },
+      { id: 'rebalancing-hotspots', name: 'Rebalancing & Hotspot Handling', brief: 'Dealing with skewed traffic/storage.' },
+      { id: 'cross-shard-queries', name: 'Cross-Shard Queries & Joins', brief: 'Handling distributed transaction complexities.' },
+    ],
+  },
+  {
+    id: 'database-replication',
+    name: 'Database Replication',
+    brief: 'Copy data across multiple machines for durability and scale.',
+    category: 'Fundamentals',
+    scale: '10k writes/sec',
+    difficulty: 'Medium',
+    subtopics: [
+      { id: 'replication-topologies', name: 'Leader-Follower, Leader-Leader', brief: 'Topology design and write management.' },
+      { id: 'sync-vs-async-repl', name: 'Synchronous vs Asynchronous Replication', brief: 'Tradeoffs in durability vs latency.' },
+      { id: 'repl-lag-consistency', name: 'Replication Lag & Read-After-Write Consistency', brief: 'Handling stale replica reads.' },
+    ],
+  },
+  {
+    id: 'cap-theorem',
+    name: 'CAP Theorem & Consistency Models',
+    brief: 'Learn CAP and PACELC trade-offs in distributed data systems.',
+    category: 'Fundamentals',
+    scale: 'N/A',
+    difficulty: 'Medium',
+    subtopics: [
+      { id: 'cap-pacelc', name: 'CAP & PACELC', brief: 'Understanding consistency, availability, partitions, latency.' },
+      { id: 'consistency-models', name: 'Strong, Eventual, Causal Consistency', brief: 'Hierarchy of consistency models.' },
+      { id: 'real-world-tradeoffs', name: 'Real-World Tradeoffs (Dynamo, Cassandra, Spanner)', brief: 'How modern databases handle CAP.' },
+    ],
+  },
+  {
+    id: 'consistent-hashing',
+    name: 'Consistent Hashing',
+    brief: 'Minimize hash ring remapping when nodes join or leave.',
+    category: 'Fundamentals',
+    scale: '1M+ Nodes',
+    difficulty: 'Medium',
+    subtopics: [
+      { id: 'virtual-nodes', name: 'Virtual Nodes & Ring-Based Distribution', brief: 'Even load distribution technique.' },
+      { id: 'node-membership', name: 'Adding/Removing Nodes', brief: 'Data migration path during cluster scaling.' },
+      { id: 'hashing-use-cases', name: 'Use Cases (distributed caches, partitioning)', brief: 'Redis, Memcached, Dynamo sharding.' },
+    ],
+  },
+  {
+    id: 'message-queues',
+    name: 'Message Queues & Async Processing',
+    brief: 'Deconstruct request flows using asynchronous event brokers.',
+    category: 'Fundamentals',
+    scale: '1M Events/sec',
+    difficulty: 'Medium',
+    subtopics: [
+      { id: 'queue-pubsub-streaming', name: 'Queue vs Pub/Sub vs Streaming', brief: 'RabbitMQ vs Kafka vs SQS.' },
+      { id: 'delivery-guarantees', name: 'At-Least-Once, At-Most-Once, Exactly-Once Delivery', brief: 'Message delivery mechanics.' },
+      { id: 'backpressure-dlq', name: 'Backpressure & Dead Letter Queues', brief: 'Handling failures and slow consumers.' },
+    ],
+  },
+  {
+    id: 'api-design',
+    name: 'API Design & Rate Limiting',
+    brief: 'Design clean external interfaces and protect them from abuse.',
+    category: 'API & Microservices',
+    scale: 'N/A',
+    difficulty: 'Easy-Medium',
+    subtopics: [
+      { id: 'protocols', name: 'REST vs gRPC vs GraphQL vs WebSockets', brief: 'API communication protocols.' },
+      { id: 'pagination', name: 'Pagination (cursor vs offset)', brief: 'Query paging design.' },
+      { id: 'rate-limiting-algos', name: 'Rate Limiting Algorithms (Token Bucket, Sliding Window)', brief: 'Traffic throttling methods.' },
+    ],
+  },
+  {
+    id: 'microservices-architecture',
+    name: 'Microservices Architecture',
+    brief: 'Design service boundaries, communication networks, and discovery systems.',
+    category: 'API & Microservices',
+    scale: '100+ Services',
+    difficulty: 'Medium',
+    subtopics: [
+      { id: 'migration', name: 'Monolith → Microservices Migration', brief: 'Strangler Fig pattern and modular decoupling.' },
+      { id: 'discovery-comm', name: 'Service Discovery & Communication', brief: 'DNS, Consul, and HTTP vs RPC protocols.' },
+      { id: 'saga-pattern', name: 'Saga Pattern & Distributed Transactions', brief: 'Choreographed and orchestrated sagas.' },
+    ],
+  },
+  {
+    id: 'event-driven-architecture',
+    name: 'Event-Driven Architecture',
+    brief: 'Build decoupling systems by publishing and reacting to events.',
+    category: 'API & Microservices',
+    scale: '100M Events/day',
+    difficulty: 'Medium-Hard',
+    subtopics: [
+      { id: 'event-sourcing', name: 'Event Sourcing', brief: 'Storing state modifications as event sequences.' },
+      { id: 'cqrs', name: 'CQRS (Command Query Responsibility Segregation)', brief: 'Splitting read and write paths.' },
+      { id: 'choreography-orchestration', name: 'Choreography vs Orchestration', brief: 'Decentralized vs centralized flows.' },
+    ],
+  },
+  {
+    id: 'url-shortener',
+    name: 'Design a URL Shortener (TinyURL)',
+    brief: 'Design a high-throughput, low-latency URL redirect service.',
+    category: 'System Design (HLD)',
+    scale: '100M URLs/day',
+    difficulty: 'Easy',
+    subtopics: [
+      { id: 'hash-generation', name: 'Hash Generation & Collision Handling', brief: 'MD5 vs Base62 encoding.' },
+      { id: 'read-heavy-opt', name: 'Read-Heavy Optimization', brief: 'Caching redirection mappings.' },
+      { id: 'analytics-expiration', name: 'Analytics & Expiration', brief: 'Handling click counts and storage cleanup.' },
+    ],
+  },
+  {
+    id: 'pastebin',
+    name: 'Design a Paste Bin',
+    brief: 'Design a web application to share plain text snippet files.',
+    category: 'System Design (HLD)',
+    scale: '10M pastes/day',
+    difficulty: 'Easy',
+    subtopics: [
+      { id: 'paste-storage', name: 'Storage Strategy for Text Blobs', brief: 'Object storage vs relational database.' },
+      { id: 'paste-expiration', name: 'Expiration & Cleanup', brief: 'S3 lifecycle policies and cron jobs.' },
+      { id: 'paste-rate-limiting', name: 'Rate Limiting Abuse', brief: 'IP-based restriction of paste uploads.' },
+    ],
+  },
+  {
+    id: 'rate-limiter',
+    name: 'Design a Rate Limiter',
+    brief: 'Design a high-scale API gateway utility to limit incoming traffic.',
+    category: 'System Design (HLD)',
+    scale: '1M RPS',
+    difficulty: 'Easy-Medium',
+    subtopics: [
+      { id: 'rl-token-bucket', name: 'Token Bucket & Sliding Window Counter', brief: 'Comparing core algorithms.' },
+      { id: 'distributed-rl', name: 'Distributed Rate Limiting (Redis-based)', brief: 'Using Redis cluster and Lua scripts.' },
+      { id: 'rl-scopes', name: 'Per-User vs Per-IP vs Per-API', brief: 'Configuring rate limiter granularity.' },
+    ],
+  },
+  {
+    id: 'key-value-store',
+    name: 'Design a Key-Value Store',
+    brief: 'Design a distributed KV store with high-performance writes.',
+    category: 'System Design (HLD)',
+    scale: 'Petabyte scale',
+    difficulty: 'Medium',
+    subtopics: [
+      { id: 'kv-persistence', name: 'In-Memory + Persistence (LSM Tree, SSTable)', brief: 'Write Path, Memtable, Commit Log.' },
+      { id: 'kv-replication', name: 'Replication & Consistency', brief: 'Quorum writes, sloppy quorum.' },
+      { id: 'conflict-resolution', name: 'Conflict Resolution (Vector Clocks, Last-Write-Wins)', brief: 'Handling concurrent edits.' },
+    ],
+  },
+  {
+    id: 'twitter',
+    name: 'Design Twitter / X',
+    brief: 'Design a social media network with news feed generation.',
+    category: 'System Design (HLD)',
+    scale: '500M Tweets/day',
+    difficulty: 'Medium-Hard',
+    subtopics: [
+      { id: 'tweet-fanout', name: 'Fan-Out on Write vs Fan-Out on Read', brief: 'Push vs pull feed architecture.' },
+      { id: 'tweet-timeline', name: 'Timeline Generation & Ranking', brief: 'Caching user home timelines.' },
+      { id: 'celebrity-problem', name: 'Celebrity Problem & Hybrid Approach', brief: 'Handling users with millions of followers.' },
+    ],
+  },
+  {
+    id: 'instagram',
+    name: 'Design Instagram',
+    brief: 'Design a photo and video sharing social network.',
+    category: 'System Design (HLD)',
+    scale: '100M Uploads/day',
+    difficulty: 'Medium',
+    subtopics: [
+      { id: 'insta-upload', name: 'Photo Upload & Storage Pipeline', brief: 'S3 storage, media transcoding, metadata.' },
+      { id: 'insta-feed', name: 'News Feed Generation', brief: 'Caching posts of followed users.' },
+      { id: 'insta-explore', name: 'Explore/Recommendation Feed', brief: 'Machine learning model ranking.' },
+    ],
+  },
+  {
+    id: 'whatsapp',
+    name: 'Design WhatsApp / Messenger',
+    brief: 'Design a secure, low-latency, real-time messaging application.',
+    category: 'System Design (HLD)',
+    scale: '100B Messages/day',
+    difficulty: 'Medium-Hard',
+    subtopics: [
+      { id: 'wa-realtime', name: 'Real-Time Messaging (WebSockets, Long Polling)', brief: 'Connection manager and gateway design.' },
+      { id: 'wa-guarantees', name: 'Message Delivery Guarantees', brief: 'Sent, delivered, and read indicators.' },
+      { id: 'wa-group-encryption', name: 'Group Chat & End-to-End Encryption', brief: 'Signal Protocol, group sessions.' },
+      { id: 'wa-offline', name: 'Offline Messaging & Sync', brief: 'Storing and delivering pending messages.' },
+    ],
+  },
+  {
+    id: 'youtube-netflix',
+    name: 'Design YouTube / Netflix',
+    brief: 'Design a high-scale video hosting and streaming service.',
+    category: 'System Design (HLD)',
+    scale: '200M concurrent users',
+    difficulty: 'Hard',
+    subtopics: [
+      { id: 'yt-upload', name: 'Video Upload & Transcoding Pipeline', brief: 'Chunking, formats (MP4, WebM), resolutions.' },
+      { id: 'yt-streaming', name: 'Adaptive Bitrate Streaming (HLS, DASH)', brief: 'Adjusting stream quality dynamically.' },
+      { id: 'yt-recommendation', name: 'Recommendation Engine & CDN Strategy', brief: 'Optimizing edge cache hit rate.' },
+      { id: 'yt-live', name: 'Live Streaming Architecture', brief: 'Low-latency ingestion and delivery.' },
+    ],
+  },
+  {
+    id: 'google-drive',
+    name: 'Design Google Drive / Dropbox',
+    brief: 'Design a file synchronization and storage cloud service.',
+    category: 'System Design (HLD)',
+    scale: '50M active users',
+    difficulty: 'Hard',
+    subtopics: [
+      { id: 'gd-chunking', name: 'File Chunking & Deduplication', brief: 'Block-level sync and content-based hashing.' },
+      { id: 'gd-conflict', name: 'Sync Conflict Resolution', brief: 'Client vs server side merge strategies.' },
+      { id: 'gd-versioning', name: 'Versioning & Delta Sync', brief: 'Only uploading modified file blocks.' },
+      { id: 'gd-notification', name: 'Notification Service for Changes', brief: 'WebSocket/SSE update pushes.' },
+    ],
+  },
+  {
+    id: 'uber',
+    name: 'Design Uber / Ola',
+    brief: 'Design a real-time ride-sharing dispatch system.',
+    category: 'System Design (HLD)',
+    scale: '1M active drivers',
+    difficulty: 'Hard',
+    subtopics: [
+      { id: 'uber-tracking', name: 'Real-Time Location Tracking (Geohashing, Quadtrees)', brief: 'Storing driver GPS coordinates.' },
+      { id: 'uber-matching', name: 'Ride Matching Algorithm', brief: 'Finding nearby drivers efficiently.' },
+      { id: 'uber-eta', name: 'ETA Calculation & Surge Pricing', brief: 'Routing algorithms and supply-demand adjustments.' },
+      { id: 'uber-statemachine', name: 'Driver/Rider State Machine', brief: 'Managing dispatch state transitions.' },
+    ],
+  },
+  {
+    id: 'zomato',
+    name: 'Design Zomato / DoorDash',
+    brief: 'Design a real-time food delivery discovery and order system.',
+    category: 'System Design (HLD)',
+    scale: '5M orders/day',
+    difficulty: 'Medium-Hard',
+    subtopics: [
+      { id: 'zomato-search', name: 'Restaurant Search & Ranking', brief: 'Geospatial indexing and search query routing.' },
+      { id: 'zomato-statemachine', name: 'Order State Machine & Delivery Assignment', brief: 'Matching orders with delivery partners.' },
+      { id: 'zomato-tracking', name: 'Real-Time Tracking & ETA Updates', brief: 'Driver coordinate updates to customer.' },
+      { id: 'zomato-payment', name: 'Payment & Refund Flows', brief: 'Handling transactions and failures.' },
+    ],
+  },
+  {
+    id: 'notification-system',
+    name: 'Design a Notification System',
+    brief: 'Design a distributed system to send push, SMS, and email alerts.',
+    category: 'System Design (HLD)',
+    scale: '1B notifications/day',
+    difficulty: 'Medium',
+    subtopics: [
+      { id: 'notif-channels', name: 'Push, Email, SMS, In-App Channels', brief: 'Integrating third-party APIs (APNS, Twilio, SendGrid).' },
+      { id: 'notif-throttling', name: 'Priority & Throttling', brief: 'Managing user preferences and message backlogs.' },
+      { id: 'notif-templates', name: 'Template Engine & Preference Management', brief: 'Resolving dynamic content and user opt-outs.' },
+      { id: 'notif-retry', name: 'Retry & Deduplication', brief: 'Idempotency keys and fallback paths.' },
+    ],
+  },
+  {
+    id: 'payment-system',
+    name: 'Design a Payment System (Stripe/Razorpay)',
+    brief: 'Design a payment processing system with double-spend prevention.',
+    category: 'System Design (HLD)',
+    scale: '10k tx/sec',
+    difficulty: 'Hard',
+    subtopics: [
+      { id: 'pay-idempotency', name: 'Idempotency & Double-Spend Prevention', brief: 'Using unique transaction keys and distributed locks.' },
+      { id: 'pay-statemachine', name: 'Payment State Machine', brief: 'Tracking pending, authorized, and captured states.' },
+      { id: 'pay-ledger', name: 'Ledger Design & Reconciliation', brief: 'Double-entry bookkeeping and nightly audits.' },
+      { id: 'pay-pci', name: 'PCI Compliance & Tokenization', brief: 'Handling credit card data securely.' },
+    ],
+  },
+  {
+    id: 'distributed-message-queue',
+    name: 'Design a Distributed Message Queue (Kafka)',
+    brief: 'Design a high-throughput, partitioned log broker.',
+    category: 'System Design (HLD)',
+    scale: '10B events/day',
+    difficulty: 'Hard',
+    subtopics: [
+      { id: 'mq-partitioning', name: 'Partitioning & Consumer Groups', brief: 'Scale-out and message order preservation.' },
+      { id: 'mq-offsets', name: 'Offset Management & Replayability', brief: 'Tracking consumer progress in partition logs.' },
+      { id: 'mq-eos', name: 'Exactly-Once Semantics', brief: 'Transactional writes and read isolation.' },
+      { id: 'mq-compaction', name: 'Retention & Compaction', brief: 'Log cleaning and key-based compaction.' },
+    ],
+  },
+  {
+    id: 'search-autocomplete',
+    name: 'Design a Search Autocomplete / Typeahead',
+    brief: 'Design a real-time prefix-matching query suggestion service.',
+    category: 'System Design (HLD)',
+    scale: '100k searches/sec',
+    difficulty: 'Medium',
+    subtopics: [
+      { id: 'auto-trie', name: 'Trie-Based vs Prefix Search', brief: 'Structuring in-memory search structures.' },
+      { id: 'auto-ranking', name: 'Ranking by Popularity & Personalization', brief: 'Determining autocomplete order.' },
+      { id: 'auto-updates', name: 'Real-Time Updates & Caching', brief: 'Rebuilding indices with MapReduce/Spark.' },
+    ],
+  },
+  {
+    id: 'web-crawler',
+    name: 'Design a Web Crawler',
+    brief: 'Design a scalable crawler to index the World Wide Web.',
+    category: 'System Design (HLD)',
+    scale: '10B pages crawled',
+    difficulty: 'Medium-Hard',
+    subtopics: [
+      { id: 'crawl-politeness', name: 'Politeness & robots.txt', brief: 'Avoiding DOS attacks on host servers.' },
+      { id: 'crawl-frontier', name: 'URL Frontier & Priority Scheduling', brief: 'Managing queue priority and crawl frequency.' },
+      { id: 'crawl-dedup', name: 'Deduplication (URL + Content)', brief: 'Minimizing redundant crawls using Bloom filters.' },
+      { id: 'crawl-dist', name: 'Distributed Crawling Architecture', brief: 'Partitioning domains across crawl workers.' },
+    ],
+  },
+  {
+    id: 'google-maps',
+    name: 'Design Google Maps',
+    brief: 'Design a routing and geospatial tile serving system.',
+    category: 'System Design (HLD)',
+    scale: '1B DAU',
+    difficulty: 'Hard',
+    subtopics: [
+      { id: 'maps-tiles', name: 'Map Tile Serving & Caching', brief: 'Mercator projection and server caches.' },
+      { id: 'maps-routing', name: 'Shortest Path (Dijkstra, A*, Contraction Hierarchies)', brief: 'Low-latency route computation.' },
+      { id: 'maps-eta', name: 'ETA Prediction & Traffic Data Pipeline', brief: 'Fusing historical and live GPS data.' },
+      { id: 'maps-geospatial', name: 'Places Search & Geospatial Indexing', brief: 'Indexing points of interest using S2/H3.' },
+    ],
+  },
+  {
+    id: 'recommendation-engine',
+    name: 'Design a Recommendation Engine',
+    brief: 'Design a real-time recommender model pipeline.',
+    category: 'System Design (HLD)',
+    scale: '100M active users',
+    difficulty: 'Hard',
+    subtopics: [
+      { id: 'rec-filtering', name: 'Collaborative Filtering vs Content-Based', brief: 'Comparing recommendation heuristics.' },
+      { id: 'rec-timing', name: 'Real-Time vs Batch Recommendations', brief: 'Offline training vs online inference.' },
+      { id: 'rec-features', name: 'Feature Store & Model Serving', brief: 'Feature retrieval at millisecond scale.' },
+      { id: 'rec-coldstart', name: 'Cold Start Problem', brief: 'Handling new users or items.' },
+    ],
+  },
+  {
+    id: 'ad-click-aggregation',
+    name: 'Design an Ad Click Aggregation System',
+    brief: 'Design a stream processor to count global ad clicks.',
+    category: 'System Design (HLD)',
+    scale: '10B clicks/day',
+    difficulty: 'Hard',
+    subtopics: [
+      { id: 'ad-counting', name: 'Real-Time Counting at Scale', brief: 'Aggregating events inside streaming windows.' },
+      { id: 'ad-lambda', name: 'Lambda Architecture (batch + stream)', brief: 'Fast layer vs accurate batch layer.' },
+      { id: 'ad-fraud', name: 'Deduplication & Fraud Detection', brief: 'Filtering bot traffic and double clicks.' },
+      { id: 'ad-windowing', name: 'Windowed Aggregation', brief: 'Tumbling, sliding, and session windows.' },
+    ],
+  },
+  {
+    id: 'metrics-monitoring',
+    name: 'Design a Metrics & Monitoring System (Datadog)',
+    brief: 'Design a high-scale time-series data storage and alert engine.',
+    category: 'System Design (HLD)',
+    scale: '100M metrics/sec',
+    difficulty: 'Hard',
+    subtopics: [
+      { id: 'metrics-ingest', name: 'Time-Series Data Ingestion at Scale', brief: 'Handling write-heavy numeric telemetry.' },
+      { id: 'metrics-retention', name: 'Downsampling & Retention Policies', brief: 'Reducing data density for older logs.' },
+      { id: 'metrics-alerting', name: 'Alerting Engine & Anomaly Detection', brief: 'Running periodic checks against metrics.' },
+      { id: 'metrics-query', name: 'Dashboard Query Optimization', brief: 'Caching queries and index partitions.' },
+    ],
+  },
+  {
+    id: 'distributed-task-scheduler',
+    name: 'Design a Distributed Task Scheduler (Airflow)',
+    brief: 'Design a task runner with dependency execution rules.',
+    category: 'System Design (HLD)',
+    scale: '10M tasks/day',
+    difficulty: 'Medium-Hard',
+    subtopics: [
+      { id: 'sched-dag', name: 'DAG Execution & Dependency Resolution', brief: 'Topological sorting of workflow graphs.' },
+      { id: 'sched-workers', name: 'Worker Pool & Task Assignment', brief: 'Distributing jobs to distributed agents.' },
+      { id: 'sched-failures', name: 'Retry, Timeout, Dead Letter Handling', brief: 'Managing task runtime failures.' },
+      { id: 'sched-idempotency', name: 'Idempotent Task Execution', brief: 'Ensuring tasks can run multiple times safely.' },
+    ],
+  },
+  {
+    id: 'gaming-leaderboard',
+    name: 'Design a Real-Time Gaming Leaderboard',
+    brief: 'Design a scoreboard showing ranking among millions of active users.',
+    category: 'System Design (HLD)',
+    scale: '10M DAU',
+    difficulty: 'Medium',
+    subtopics: [
+      { id: 'game-zset', name: 'Sorted Sets (Redis ZSET)', brief: 'Score sorting via skip-lists.' },
+      { id: 'game-queries', name: 'Top-K & Rank Queries', brief: 'Getting user ranks in O(log N) time.' },
+      { id: 'game-sharding', name: 'Sharding Strategies for Global Scale', brief: 'Partitioning score ranges across clusters.' },
+      { id: 'game-realtime', name: 'Near-Real-Time vs Exact Ranking', brief: 'Caching rankings to reduce database load.' },
+    ],
+  },
+  {
+    id: 'distributed-cache',
+    name: 'Design a Distributed Cache (Memcached Cluster)',
+    brief: 'Design a custom caching cluster with consistent key routing.',
+    category: 'System Design (HLD)',
+    scale: '10M RPS',
+    difficulty: 'Medium-Hard',
+    subtopics: [
+      { id: 'cache-part', name: 'Consistent Hashing for Partitioning', brief: 'Node routing without a central leader.' },
+      { id: 'cache-stampede', name: 'Cache Stampede & Thundering Herd', brief: 'Mitigating simultaneous cache expires.' },
+      { id: 'cache-hotkey', name: 'Hot Key Handling', brief: 'Local replication and caching of popular items.' },
+      { id: 'cache-warming', name: 'Cache Warming Strategies', brief: 'Pre-populating cache keys before launch.' },
+    ],
+  },
+  {
+    id: 'fraud-detection',
+    name: 'Design a Fraud Detection System',
+    brief: 'Design a low-latency transaction scoring application.',
+    category: 'System Design (HLD)',
+    scale: '10k tx/sec',
+    difficulty: 'Hard',
+    subtopics: [
+      { id: 'fraud-features', name: 'Real-Time Feature Computation', brief: 'Windowed aggregations for profile context.' },
+      { id: 'fraud-rules', name: 'Rule Engine + ML Hybrid', brief: 'Applying heuristics and models simultaneously.' },
+      { id: 'fraud-scoring', name: 'Low-Latency Scoring Pipeline', brief: 'Making decisions in under 50 milliseconds.' },
+      { id: 'fraud-feedback', name: 'Feedback Loop & Model Retraining', brief: 'Updating models based on manual audits.' },
+    ],
+  },
+  {
+    id: 'content-moderation',
+    name: 'Design a Content Moderation Pipeline',
+    brief: 'Design an automated review queue for uploaded media files.',
+    category: 'System Design (HLD)',
+    scale: '10M uploads/day',
+    difficulty: 'Medium-Hard',
+    subtopics: [
+      { id: 'mod-detection', name: 'Multi-Modal Detection (text, image, video)', brief: 'Routing media to ML classifiers.' },
+      { id: 'mod-review', name: 'Human-in-the-Loop Review Queue', brief: 'Escalating edge cases to humans.' },
+      { id: 'mod-appeal', name: 'Appeal & Escalation System', brief: 'Allowing users to challenge blocks.' },
+      { id: 'mod-tradeoffs', name: 'Latency vs Accuracy Tradeoffs', brief: 'Synchronous vs asynchronous mod loops.' },
+    ],
+  },
+  {
+    id: 'splitwise',
+    name: 'Design Splitwise (Expense Sharing)',
+    brief: 'Model group balances and optimize debt settlements.',
+    category: 'Low-Level Design (LLD)',
+    scale: 'N/A',
+    difficulty: 'Easy-Medium',
+    isLLD: true,
+    subtopics: [
+      { id: 'split-debt', name: 'Debt Simplification Algorithm', brief: 'Minimizing transactions using graphs.' },
+      { id: 'split-balances', name: 'Group & Friend Balances', brief: 'Class structures for users and transactions.' },
+      { id: 'split-concurrent', name: 'Concurrent Settlement Handling', brief: 'Optimistic locking on group balances.' },
+    ],
+  },
+  {
+    id: 'parking-lot',
+    name: 'Design a Parking Lot System',
+    brief: 'Model vehicle parking allocation and billing systems.',
+    category: 'Low-Level Design (LLD)',
+    scale: 'N/A',
+    difficulty: 'Easy',
+    isLLD: true,
+    subtopics: [
+      { id: 'park-modeling', name: 'Object Modeling (Vehicle, Spot, Floor, Ticket)', brief: 'Defining class relationships.' },
+      { id: 'park-strategy', name: 'Strategy Pattern for Spot Assignment', brief: 'Decoupling spot allocation logic.' },
+      { id: 'park-billing', name: 'Payment & Exit Flow', brief: 'Ticket verification and pricing algorithms.' },
+    ],
+  },
+  {
+    id: 'bookmyshow',
+    name: 'Design BookMyShow (Seat Booking)',
+    brief: 'Model theater seat reservation under high concurrency.',
+    category: 'Low-Level Design (LLD)',
+    scale: '10k seats/sec',
+    difficulty: 'Medium',
+    isLLD: true,
+    subtopics: [
+      { id: 'book-locking', name: 'Seat Locking & Reservation Timeout', brief: 'Temporary locks in Redis/DB.' },
+      { id: 'book-concurrency', name: 'Concurrency Handling (Optimistic Locking)', brief: 'Preventing double booking.' },
+      { id: 'book-recovery', name: 'Payment Integration & Failure Recovery', brief: 'Reclaiming seats on payment fail.' },
+    ],
+  },
+  {
+    id: 'elevator-system',
+    name: 'Design an Elevator System',
+    brief: 'Model lift movement and floor passenger dispatch.',
+    category: 'Low-Level Design (LLD)',
+    scale: 'N/A',
+    difficulty: 'Easy-Medium',
+    isLLD: true,
+    subtopics: [
+      { id: 'elv-state', name: 'State Machine (Idle, Moving, Stopped)', brief: 'Defining elevator state transitions.' },
+      { id: 'elv-scan', name: 'Scheduling Algorithms (SCAN, LOOK)', brief: 'Optimizing pick-up path.' },
+      { id: 'elv-coordinate', name: 'Multi-Elevator Coordination', brief: 'Dispatching elevators dynamically.' },
+    ],
+  },
+  {
+    id: 'lru-cache',
+    name: 'Design an LRU Cache',
+    brief: 'Implement a thread-safe least recently used cache.',
+    category: 'Low-Level Design (LLD)',
+    scale: 'N/A',
+    difficulty: 'Easy',
+    isLLD: true,
+    subtopics: [
+      { id: 'lru-ds', name: 'HashMap + Doubly Linked List', brief: 'Getting O(1) reads and writes.' },
+      { id: 'lru-threads', name: 'Thread-Safe Implementation', brief: 'Using locks or concurrent structures.' },
+      { id: 'lru-ttl', name: 'Eviction & TTL Extension', brief: 'Combining LRU with time-based expiry.' },
+    ],
+  },
+  {
+    id: 'pub-sub-system',
+    name: 'Design a Pub-Sub System',
+    brief: 'Model dynamic topic subscriptions and memory buffer queues.',
+    category: 'Low-Level Design (LLD)',
+    scale: 'N/A',
+    difficulty: 'Medium',
+    isLLD: true,
+    subtopics: [
+      { id: 'pub-registry', name: 'Topic Management & Subscriber Registry', brief: 'Observer pattern representation.' },
+      { id: 'pub-delivery', name: 'Message Delivery Guarantees', brief: 'Push vs pull message delivery.' },
+      { id: 'pub-pressure', name: 'Backpressure & Slow Consumer Handling', brief: 'Buffering and overflow policies.' },
+    ],
+  },
+  {
+    id: 'chess-tictactoe',
+    name: 'Design Chess / Tic-Tac-Toe',
+    brief: 'Model turn-based board games with move verification.',
+    category: 'Low-Level Design (LLD)',
+    scale: 'N/A',
+    difficulty: 'Easy',
+    isLLD: true,
+    subtopics: [
+      { id: 'chess-board', name: 'Board Representation & Move Validation', brief: 'Array mapping and rule engines.' },
+      { id: 'chess-state', name: 'Game State Machine', brief: 'Tracking player turns and game status.' },
+      { id: 'chess-undo', name: 'Undo/Redo & Replay', brief: 'Command pattern implementation.' },
+    ],
+  },
+  {
+    id: 'observability-sre',
+    name: 'Observability & SRE Fundamentals',
+    brief: 'Understand monitoring frameworks and service level targets.',
+    category: 'Infrastructure & Ops',
+    scale: 'N/A',
+    difficulty: 'Medium',
+    subtopics: [
+      { id: 'obs-pillars', name: 'Logs, Metrics, Traces (Three Pillars)', brief: 'Fusing telemetry formats together.' },
+      { id: 'obs-sli', name: 'SLIs, SLOs, SLAs & Error Budgets', brief: 'Quantifying and budgeting service targets.' },
+      { id: 'obs-incident', name: 'Incident Response & Postmortems', brief: 'Standard operations for outages.' },
+    ],
+  },
+  {
+    id: 'distributed-consensus',
+    name: 'Distributed Consensus',
+    brief: 'Understand consensus protocols for distributed state agreement.',
+    category: 'Infrastructure & Ops',
+    scale: 'N/A',
+    difficulty: 'Hard',
+    subtopics: [
+      { id: 'cons-raft', name: 'Paxos & Raft', brief: 'Underpinnings of state machine replication.' },
+      { id: 'cons-leader', name: 'Leader Election', brief: 'Heartbeats, randomized timeouts, term numbers.' },
+      { id: 'cons-split', name: 'Split Brain & Network Partitions', brief: 'Handling partition recovery with majorities.' },
+    ],
+  },
+  {
+    id: 'data-pipelines',
+    name: 'Data Pipelines & Stream Processing',
+    brief: 'Understand batch and stream processing systems at scale.',
+    category: 'Infrastructure & Ops',
+    scale: '100TB/day',
+    difficulty: 'Medium-Hard',
+    subtopics: [
+      { id: 'pipe-batch', name: 'Batch vs Stream (MapReduce vs Flink/Spark Streaming)', brief: 'Bounded vs unbounded data streams.' },
+      { id: 'pipe-window', name: 'Windowing (Tumbling, Sliding, Session)', brief: 'Aggregation boundaries over time.' },
+      { id: 'pipe-schema', name: 'Backfill & Schema Evolution', brief: 'Re-running pipelines and mapping schema changes.' },
+    ],
+  },
+  {
+    id: 'security-auth',
+    name: 'Security & Auth at Scale',
+    brief: 'Protect systems using token authorization and key vaults.',
+    category: 'Infrastructure & Ops',
+    scale: '10k auths/sec',
+    difficulty: 'Medium',
+    subtopics: [
+      { id: 'sec-oauth', name: 'OAuth 2.0 & JWT Architecture', brief: 'Token format and centralized vs distributed validation.' },
+      { id: 'sec-gateway', name: 'API Gateway & Zero Trust', brief: 'Ingress enforcement and service mTLS.' },
+      { id: 'sec-secret', name: 'Secret Management & Key Rotation', brief: 'Safeguarding API tokens and database keys.' },
+      { id: 'sec-ddos', name: 'DDoS Mitigation', brief: 'Rate limits, CDN filtering, Web Application Firewalls.' },
+    ],
+  },
+  {
+    id: 'cicd-pipeline',
+    name: 'Design a CI/CD Pipeline',
+    brief: 'Model automated compilation, testing, and deployment jobs.',
+    category: 'Infrastructure & Ops',
+    scale: '10k builds/day',
+    difficulty: 'Medium',
+    isLLD: true,
+    subtopics: [
+      { id: 'ci-dag', name: 'Pipeline DAG & Stage Execution', brief: 'Resolving job dependencies in order.' },
+      { id: 'ci-cache', name: 'Artifact Storage & Caching', brief: 'Caching node_modules and compiler output.' },
+      { id: 'ci-deploy', name: 'Rollback Strategies (Blue-Green, Canary)', brief: 'Mitigating risk during server releases.' },
+      { id: 'ci-isolation', name: 'Concurrent Build Isolation', brief: 'Running jobs inside ephemeral containers.' },
     ],
   },
 ];
@@ -123,22 +764,48 @@ const QUIZ_BANK = [
   { q: 'What does a circuit breaker do when it "opens"?', options: ['Retries the request with exponential backoff', 'Fails fast without calling the downstream service', 'Routes traffic to a backup service', 'Sends an alert to the on-call engineer'], answer: 1, explanation: 'An open circuit breaker fails fast (returns error immediately) without calling the failing downstream service, preventing cascade failures.' },
 ];
 
+function diffColor(d: string) {
+  if (d === 'Easy') return 'text-success bg-success/10';
+  if (d === 'Easy-Medium') return 'text-success/80 bg-success/5 border border-success/10';
+  if (d === 'Medium') return 'text-warning bg-warning/10';
+  if (d === 'Medium-Hard') return 'text-warning/80 bg-warning/5 border border-warning/10';
+  return 'text-error bg-error/10';
+}
+
 function initSections(): Record<string, SectionState> {
   return Object.fromEntries(SECTION_DEFS.map(s => [s.id, { generated: false, generating: false, content: '' }]));
 }
 
 export default function SystemDesignLabInteractive() {
-  const [topics] = useState<SDTopic[]>(TOPICS);
-  const [selectedTopicId, setSelectedTopicId] = useState('url-shortener');
+  const [topics, setTopics] = useState<SDTopic[]>(TOPICS);
+  const [selectedTopicId, setSelectedTopicId] = useState('scaling-fundamentals');
   const [selectedSubtopicId, setSelectedSubtopicId] = useState<string | null>(null);
-  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set(['url-shortener']));
+  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set(['scaling-fundamentals']));
   const [sections, setSections] = useState<Record<string, SectionState>>(initSections());
   const [customInput, setCustomInput] = useState('');
   const [addingCustom, setAddingCustom] = useState(false);
-  const [customTopics, setCustomTopics] = useState<SDTopic[]>([]);
   const [quizBatch, setQuizBatch] = useState(0);
 
-  const allTopics = [...topics, ...customTopics];
+  useEffect(() => {
+    fetch('http://localhost:8000/system-design/topics')
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then((data: SDTopic[]) => {
+        if (data && data.length > 0) {
+          setTopics(data);
+        } else {
+          setTopics(TOPICS);
+        }
+      })
+      .catch(err => {
+        console.error("Error fetching system design topics, falling back to static list:", err);
+        setTopics(TOPICS);
+      });
+  }, []);
+
+  const allTopics = topics;
   const currentTopic = allTopics.find(t => t.id === selectedTopicId) ?? null;
   const currentSubtopic = currentTopic?.subtopics.find(s => s.id === selectedSubtopicId) ?? null;
   const contextLabel = currentSubtopic?.name ?? currentTopic?.name ?? 'System Design';
@@ -179,12 +846,37 @@ export default function SystemDesignLabInteractive() {
   const handleAddCustom = () => {
     if (!customInput.trim()) return;
     setAddingCustom(true);
-    setTimeout(() => {
-      const t: SDTopic = { id: `custom-${Date.now()}`, name: customInput.trim(), brief: 'Custom system design problem.', category: 'Custom', scale: '1M RPS', subtopics: [] };
-      setCustomTopics(prev => [...prev, t]);
-      setCustomInput('');
-      setAddingCustom(false);
-    }, 800);
+    const newTopic: SDTopic = {
+      id: `custom-${Date.now()}`,
+      name: customInput.trim(),
+      brief: 'Custom system design problem.',
+      category: 'Custom',
+      scale: '1M RPS',
+      difficulty: 'Medium',
+      isLLD: false,
+      subtopics: []
+    };
+
+    fetch('http://localhost:8000/system-design/topics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newTopic)
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then(() => {
+        setTopics(prev => [...prev, newTopic]);
+        setCustomInput('');
+        setAddingCustom(false);
+      })
+      .catch(err => {
+        console.error("Error saving custom topic to DB, saving in client state as fallback:", err);
+        setTopics(prev => [...prev, newTopic]);
+        setCustomInput('');
+        setAddingCustom(false);
+      });
   };
 
   return (
@@ -204,13 +896,27 @@ export default function SystemDesignLabInteractive() {
             {allTopics.map(topic => (
               <div key={topic.id}>
                 <button onClick={() => selectTopic(topic.id)}
-                  className={`w-full text-left flex items-center gap-8 px-14 py-9 text-xs font-semibold transition-smooth hover:bg-muted ${selectedTopicId === topic.id && !selectedSubtopicId ? 'bg-primary/10 text-primary border-r-2 border-primary' : 'text-foreground'}`}>
-                  <Icon name="ServerStackIcon" size={12} />
+                  className={`w-full text-left flex items-start gap-8 px-14 py-10 text-xs font-semibold transition-smooth hover:bg-muted ${selectedTopicId === topic.id && !selectedSubtopicId ? 'bg-primary/10 text-primary border-r-2 border-primary' : 'text-foreground'}`}>
+                  <Icon name="ServerStackIcon" size={12} className="flex-shrink-0 mt-3" />
                   <div className="flex-1 min-w-0">
                     <span className="block truncate">{topic.name}</span>
-                    <span className="text-[10px] text-muted-foreground">{topic.scale}</span>
+                    <div className="flex items-center gap-6 mt-2 flex-wrap">
+                      <span className={`text-[9px] px-5 py-1 rounded font-medium leading-none ${diffColor(topic.difficulty)}`}>
+                        {topic.difficulty}
+                      </span>
+                      {topic.isLLD && (
+                        <span className="text-[9px] text-primary bg-primary/10 px-5 py-1 rounded font-medium leading-none">
+                          LLD
+                        </span>
+                      )}
+                      {topic.scale !== 'N/A' && (
+                        <span className="text-[9px] text-muted-foreground opacity-85 leading-none">
+                          {topic.scale}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <Icon name={expandedTopics.has(topic.id) ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={11} className="text-muted-foreground flex-shrink-0" />
+                  <Icon name={expandedTopics.has(topic.id) ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={11} className="text-muted-foreground flex-shrink-0 mt-3" />
                 </button>
                 {expandedTopics.has(topic.id) && topic.subtopics.length > 0 && (
                   <div>
@@ -256,6 +962,14 @@ export default function SystemDesignLabInteractive() {
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-9 mb-9">
                       <span className="text-xs bg-primary/10 text-primary px-9 py-4 rounded-md">{currentTopic.category}</span>
+                      <span className={`text-xs px-9 py-4 rounded-md font-semibold ${diffColor(currentTopic.difficulty)}`}>
+                        {currentTopic.difficulty}
+                      </span>
+                      {currentTopic.isLLD && (
+                        <span className="text-xs bg-accent/10 text-accent px-9 py-4 rounded-md font-semibold">
+                          LLD
+                        </span>
+                      )}
                       <span className="text-xs bg-muted text-muted-foreground px-9 py-4 rounded-md font-code">Scale: {currentTopic.scale}</span>
                       {currentSubtopic && <span className="text-xs bg-secondary/10 text-secondary px-9 py-4 rounded-md">Deep Dive</span>}
                     </div>

@@ -1,71 +1,486 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import LabCopilot from '@/components/common/LabCopilot';
 import OnDemandSection from '@/components/lab/OnDemandSection';
 import QuizCarousel from '@/components/lab/QuizCarousel';
 
 interface CVTopic {
-  id: string; name: string; brief: string; category: string;
-  prerequisites: string[]; subtopics: { id: string; name: string; brief: string }[];
+  id: string;
+  name: string;
+  brief: string;
+  category: string;
+  difficulty: string;
+  prerequisites: string[];
+  subtopics: { id: string; name: string; brief: string }[];
+  isCustom?: boolean;
 }
-interface SectionState { generated: boolean; generating: boolean; content: string }
+
+interface SectionState {
+  generated: boolean;
+  generating: boolean;
+  content: string;
+}
 
 const TOPICS: CVTopic[] = [
   {
-    id: 'cnn', name: 'CNN Architectures', brief: 'Convolutional nets for visual feature learning.', category: 'Deep Learning',
-    prerequisites: ['Linear Algebra', 'Backpropagation', 'Gradient Descent'],
+    id: "image-basics",
+    name: "Image Basics & Representation",
+    brief: "Learn pixels, channels, and basic operations with OpenCV.",
+    category: "Fundamentals",
+    difficulty: "Easy",
+    prerequisites: ["Basic Python", "NumPy"],
     subtopics: [
-      { id: 'resnet', name: 'ResNet & Skip Connections', brief: 'Residual learning to train very deep networks.' },
-      { id: 'efficientnet', name: 'EfficientNet & Compound Scaling', brief: 'Principled scaling of depth, width, resolution.' },
-      { id: 'mobilenet', name: 'MobileNet & Depthwise Convolutions', brief: 'Lightweight architecture for edge deployment.' },
-    ],
+      { id: "cv-pixels", name: "Pixels, Channels, Color Spaces (RGB, HSV, LAB)", brief: "Understanding how images are represented in memory." },
+      { id: "cv-io", name: "Image Reading, Writing, Display with OpenCV", brief: "Loading, displaying, and saving images using cv2." },
+      { id: "cv-transforms", name: "Image Resizing, Cropping, Rotation", brief: "Primary geometric manipulation operations." }
+    ]
   },
   {
-    id: 'object-detection', name: 'Object Detection', brief: 'Localise and classify objects in images.', category: 'Detection',
-    prerequisites: ['CNNs', 'Anchor Boxes', 'NMS'],
+    id: "filtering-convolution",
+    name: "Image Filtering & Convolution",
+    brief: "Understand spatial filtering and kernel-based image convolution.",
+    category: "Classical CV",
+    difficulty: "Easy",
+    prerequisites: ["Image Basics", "2D Convolution Math"],
     subtopics: [
-      { id: 'yolo', name: 'YOLO (v5/v8/v10)', brief: 'Single-stage real-time object detector.' },
-      { id: 'faster-rcnn', name: 'Faster R-CNN & FPN', brief: 'Two-stage detector with region proposals.' },
-      { id: 'detr', name: 'DETR (Detection Transformer)', brief: 'End-to-end detection with transformer attention.' },
-    ],
+      { id: "cv-kernels", name: "Kernels & Convolution Operation", brief: "Mathematical concept of moving a kernel over an image." },
+      { id: "cv-blurs", name: "Gaussian Blur & Box Blur", brief: "Image smoothing techniques and low-pass filtering." },
+      { id: "cv-sharpen", name: "Sharpening Filters", brief: "Enhancing image high-frequency details." }
+    ]
   },
   {
-    id: 'segmentation', name: 'Semantic & Instance Segmentation', brief: 'Pixel-level understanding of images.', category: 'Segmentation',
-    prerequisites: ['Object Detection', 'Encoder-Decoder Architectures'],
+    id: "thresholding-binarization",
+    name: "Thresholding & Binarization",
+    brief: "Convert grayscale images to binary using global or local thresholding.",
+    category: "Classical CV",
+    difficulty: "Easy",
+    prerequisites: ["Image Basics"],
     subtopics: [
-      { id: 'unet', name: 'U-Net for Medical Imaging', brief: 'Skip connections for precise localisation.' },
-      { id: 'mask-rcnn', name: 'Mask R-CNN', brief: 'Extends Faster R-CNN with a mask branch.' },
-      { id: 'sam', name: 'Segment Anything (SAM)', brief: 'Foundation model for promptable segmentation.' },
-    ],
+      { id: "cv-otsu", name: "Global Thresholding (Otsu's Method)", brief: "Automatic thresholding based on bimodal histograms." },
+      { id: "cv-adaptive-thresh", name: "Adaptive Thresholding", brief: "Local binarization under uneven lighting conditions." },
+      { id: "cv-color-mask", name: "Color-based Segmentation (HSV masking)", brief: "Isolating colored objects in HSV color space." }
+    ]
   },
   {
-    id: 'vit', name: 'Vision Transformers (ViT)', brief: 'Applying attention mechanisms to image patches.', category: 'Transformers',
-    prerequisites: ['Self-Attention', 'Positional Encoding', 'CNNs'],
+    id: "edge-detection",
+    name: "Edge Detection",
+    brief: "Detect spatial boundaries and high-contrast lines in images.",
+    category: "Classical CV",
+    difficulty: "Easy-Medium",
+    prerequisites: ["Filtering & Convolution"],
     subtopics: [
-      { id: 'dino', name: 'DINO Self-Supervised ViT', brief: 'Knowledge distillation without labels.' },
-      { id: 'swin', name: 'Swin Transformer', brief: 'Hierarchical ViT with shifted windows.' },
-    ],
+      { id: "cv-gradients", name: "Sobel & Laplacian Operators", brief: "Calculating first and second order spatial derivatives." },
+      { id: "cv-canny", name: "Canny Edge Detection", brief: "Multi-stage edge detector with hysteresis thresholding." },
+      { id: "cv-edge-realworld", name: "Edge Detection for Real-World Images", brief: "Handling noise and scaling parameter adjustments." }
+    ]
   },
   {
-    id: 'classical', name: 'Classical Computer Vision', brief: 'Mathematical foundations before deep learning.', category: 'Classical',
-    prerequisites: ['Linear Algebra', 'Calculus', 'Probability'],
+    id: "morphological",
+    name: "Morphological Operations",
+    brief: "Perform mathematical morphology on binary shapes.",
+    category: "Classical CV",
+    difficulty: "Easy",
+    prerequisites: ["Thresholding & Binarization"],
     subtopics: [
-      { id: 'feature-matching', name: 'SIFT / ORB Feature Matching', brief: 'Scale-invariant feature detection and matching.' },
-      { id: 'stereo', name: 'Stereo Vision & Epipolar Geometry', brief: 'Depth from two cameras using geometry.' },
-      { id: 'optical-flow', name: 'Optical Flow (Lucas-Kanade)', brief: 'Motion estimation between video frames.' },
-    ],
+      { id: "cv-erosion-dilation", name: "Erosion, Dilation", brief: "Shrinking or expanding binary shapes." },
+      { id: "cv-open-close", name: "Opening, Closing", brief: "Opening and closing operations." },
+      { id: "cv-morph-noise", name: "Morphological Noise Removal", brief: "Combining operators to isolate structures." }
+    ]
   },
   {
-    id: 'edge-deploy', name: 'Edge Deployment & Optimization', brief: 'Running CV models on constrained hardware.', category: 'MLOps',
-    prerequisites: ['Model Architecture', 'PyTorch', 'Quantization basics'],
+    id: "contour-detection",
+    name: "Contour Detection & Shape Analysis",
+    brief: "Find, analyze, and classify geometric boundaries in binary images.",
+    category: "Classical CV",
+    difficulty: "Medium",
+    prerequisites: ["Thresholding & Binarization", "Edge Detection"],
     subtopics: [
-      { id: 'quantization', name: 'INT8/FP16 Quantization', brief: 'Reduce model size without significant accuracy loss.' },
-      { id: 'pruning', name: 'Pruning & Knowledge Distillation', brief: 'Remove redundant weights or compress via a teacher.' },
-      { id: 'tensorrt', name: 'TensorRT & ONNX Export', brief: 'NVIDIA-optimised inference runtime.' },
-    ],
+      { id: "cv-find-contours", name: "Finding & Drawing Contours", brief: "Extracting curves representing boundaries." },
+      { id: "cv-contour-props", name: "Contour Properties (area, perimeter, bounding box)", brief: "Computing geometric indicators of a contour." },
+      { id: "cv-shape-class", name: "Shape Classification using Contours", brief: "Sorting contours by circularity or aspect ratio." }
+    ]
   },
+  {
+    id: "feature-detection",
+    name: "Feature Detection & Matching",
+    brief: "Detect robust keypoints and associate them across multiple viewpoints.",
+    category: "Classical CV",
+    difficulty: "Medium",
+    prerequisites: ["Filtering & Convolution", "Linear Algebra"],
+    subtopics: [
+      { id: "cv-harris", name: "Harris Corner Detection", brief: "Detecting corners based on local intensity changes." },
+      { id: "cv-orb", name: "ORB Feature Detector", brief: "Fast, scale-invariant binary feature keypoint descriptor." },
+      { id: "cv-matcher", name: "Feature Matching between Images (BFMatcher)", brief: "Associating keypoint descriptions using Hamming distance." }
+    ]
+  },
+  {
+    id: "histogram-analysis",
+    name: "Histogram Analysis",
+    brief: "Analyze global color distribution and improve contrast.",
+    category: "Classical CV",
+    difficulty: "Easy-Medium",
+    prerequisites: ["Image Basics"],
+    subtopics: [
+      { id: "cv-hist-compute", name: "Histogram Computation & Visualization", brief: "Counting pixel frequency per intensity value." },
+      { id: "cv-clahe", name: "Histogram Equalization (CLAHE)", brief: "Contrast adjustment and adaptive equalization." },
+      { id: "cv-backprojection", name: "Histogram Backprojection", brief: "Finding regions matching a model color template." }
+    ]
+  },
+  {
+    id: "geometric-homography",
+    name: "Geometric Transformations & Homography",
+    brief: "Project image viewpoints onto planes using linear maps.",
+    category: "Classical CV",
+    difficulty: "Medium",
+    prerequisites: ["Linear Algebra"],
+    subtopics: [
+      { id: "cv-affine", name: "Affine Transformations", brief: "Scale, translation, rotation using 2x3 matrices." },
+      { id: "cv-perspective", name: "Perspective Transform (Bird's Eye View)", brief: "Warping perspective using 3x3 matrices." },
+      { id: "cv-ransac", name: "Homography Estimation with RANSAC", brief: "Calculating projection matrices under outlier noise." }
+    ]
+  },
+  {
+    id: "template-matching",
+    name: "Template Matching & Object Localization",
+    brief: "Search for matches to a smaller reference image within a scene.",
+    category: "Classical CV",
+    difficulty: "Medium",
+    prerequisites: ["Filtering & Convolution"],
+    subtopics: [
+      { id: "cv-tm-methods", name: "Template Matching Methods", brief: "Comparing normalized cross-correlation and squared diffs." },
+      { id: "cv-tm-multiscale", name: "Multi-scale Template Matching", brief: "Matching template over a range of resolution scales." },
+      { id: "cv-tm-limits", name: "Limitations & When to Use", brief: "Sensitivity to scale, rotation, and illumination." }
+    ]
+  },
+  {
+    id: "optical-flow",
+    name: "Optical Flow & Motion Estimation",
+    brief: "Track pixel displacements across video frames.",
+    category: "Classical CV",
+    difficulty: "Medium-Hard",
+    prerequisites: ["Filtering & Convolution", "Calculus"],
+    subtopics: [
+      { id: "cv-lucas-kanade", name: "Lucas-Kanade Optical Flow", brief: "Sparse feature tracking over consecutive frames." },
+      { id: "cv-farneback", name: "Dense Optical Flow (Farneback)", brief: "Calculating displacement vectors for all pixels." },
+      { id: "cv-motion-tracking", name: "Motion Detection & Tracking Applications", brief: "Background subtraction and trajectory tracking." }
+    ]
+  },
+  {
+    id: "image-segmentation-classical",
+    name: "Image Segmentation (Classical)",
+    brief: "Divide an image into semantic regions using classical algorithms.",
+    category: "Classical CV",
+    difficulty: "Medium",
+    prerequisites: ["Contour Detection"],
+    subtopics: [
+      { id: "cv-watershed", name: "Watershed Algorithm", brief: "Marker-based image segmentation using topographies." },
+      { id: "cv-grabcut", name: "GrabCut", brief: "Interactive foreground extraction using graph cuts." },
+      { id: "cv-meanshift", name: "Mean Shift Segmentation", brief: "Clustering pixel colors to partition regions." }
+    ]
+  },
+  {
+    id: "camera-calibration-stereo",
+    name: "Camera Calibration & Stereo Vision",
+    brief: "Extract depth maps and spatial coordinates using multi-camera layouts.",
+    category: "Geometry & Stereo",
+    difficulty: "Hard",
+    prerequisites: ["Linear Algebra", "Geometric Transformations & Homography"],
+    subtopics: [
+      { id: "cv-params", name: "Intrinsic & Extrinsic Parameters", brief: "Camera focal length, principal point, pose matrices." },
+      { id: "cv-chessboard", name: "Chessboard Calibration", brief: "Estimating distortion coefficients via targets." },
+      { id: "cv-depth-maps", name: "Stereo Matching & Depth Maps", brief: "Triangulating disparity values between stereo cameras." }
+    ]
+  },
+  {
+    id: "intro-cnn",
+    name: "Introduction to CNNs",
+    brief: "Understand the layers, math, and operations of convolutional nets.",
+    category: "Deep Learning",
+    difficulty: "Medium",
+    prerequisites: ["Python & PyTorch", "Linear Algebra", "Calculus"],
+    subtopics: [
+      { id: "cv-layers", name: "Convolution, Pooling, Stride, Padding", brief: "Core components of convolutional neural layers." },
+      { id: "cv-cnn-scratch", name: "Building a CNN from Scratch (PyTorch)", brief: "Assembling layers into a network model in PyTorch." },
+      { id: "cv-cifar", name: "Training on CIFAR-10", brief: "Running a complete image classification training cycle." }
+    ]
+  },
+  {
+    id: "transfer-learning",
+    name: "Transfer Learning & Fine-Tuning",
+    brief: "Adapt large pretrained networks to target datasets.",
+    category: "Deep Learning",
+    difficulty: "Medium",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-pretrained", name: "Using Pretrained Models (ResNet, EfficientNet)", brief: "Loading model weights pre-trained on ImageNet." },
+      { id: "cv-fe-vs-ft", name: "Feature Extraction vs Fine-Tuning", brief: "Freezing backbone weights vs full tuning." },
+      { id: "cv-custom-pipeline", name: "Custom Dataset Training Pipeline", brief: "Custom PyTorch Dataset and DataLoader design." }
+    ]
+  },
+  {
+    id: "classification-architectures",
+    name: "Image Classification Architectures",
+    brief: "Trace SOTA backbone structures and design evolutions.",
+    category: "Deep Learning",
+    difficulty: "Medium-Hard",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-archs-evolution", name: "LeNet -> AlexNet -> VGG (evolution)", brief: "Timeline of early CNN architectures." },
+      { id: "cv-resnet", name: "ResNet & Skip Connections", brief: "Gradient flow optimization via residual blocks." },
+      { id: "cv-efficientnet", name: "EfficientNet & Compound Scaling", brief: "Compound scaling of width, depth and resolution." }
+    ]
+  },
+  {
+    id: "yolo-object-detection",
+    name: "Object Detection with YOLO",
+    brief: "Train and deploy single-stage real-time object detectors.",
+    category: "Deep Learning",
+    difficulty: "Medium-Hard",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-yolo-how", name: "YOLO Architecture & How It Works", brief: "Grid-based object detection strategy." },
+      { id: "cv-yolo-train", name: "YOLOv8 Training on Custom Dataset", brief: "Preparing bounding box labels and running ultralytics." },
+      { id: "cv-yolo-deploy", name: "Real-Time Detection Deployment", brief: "Exporting YOLO models to running scripts." }
+    ]
+  },
+  {
+    id: "two-stage-object-detection",
+    name: "Object Detection (Two-Stage)",
+    brief: "Understand region-proposal and anchor-based detector networks.",
+    category: "Deep Learning",
+    difficulty: "Hard",
+    prerequisites: ["Introduction to CNNs", "Object Detection with YOLO"],
+    subtopics: [
+      { id: "cv-rcnn-evolution", name: "R-CNN -> Fast R-CNN -> Faster R-CNN", brief: "History of region proposal architectures." },
+      { id: "cv-rpn", name: "Region Proposal Networks", brief: "Directing CNN model attention to candidates." },
+      { id: "cv-det-metrics", name: "Anchor Boxes, IoU, NMS, mAP Metrics", brief: "Object detection evaluation criteria." }
+    ]
+  },
+  {
+    id: "semantic-segmentation",
+    name: "Semantic Segmentation",
+    brief: "Classify every pixel in an image to a semantic class.",
+    category: "Deep Learning",
+    difficulty: "Hard",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-fcn", name: "Fully Convolutional Networks (FCN)", brief: "Replacing linear classifier layers with conv layers." },
+      { id: "cv-unet", name: "U-Net Architecture & Medical Imaging", brief: "Symmetrical contracting and expanding paths." },
+      { id: "cv-deeplab", name: "DeepLabV3+ & Atrous Convolution", brief: "Capturing context using dilated kernels." }
+    ]
+  },
+  {
+    id: "instance-segmentation",
+    name: "Instance Segmentation",
+    brief: "Identify, segment, and separate individual objects in scenes.",
+    category: "Deep Learning",
+    difficulty: "Hard",
+    prerequisites: ["Object Detection (Two-Stage)", "Semantic Segmentation"],
+    subtopics: [
+      { id: "cv-mask-rcnn", name: "Mask R-CNN Architecture", brief: "Adding a mask projection head to Faster R-CNN." },
+      { id: "cv-panoptic", name: "Panoptic Segmentation", brief: "Fusing background stuff and foreground things." },
+      { id: "cv-sam", name: "Segment Anything Model (SAM)", brief: "Promptable visual foundation segmentation models." }
+    ]
+  },
+  {
+    id: "gans",
+    name: "GANs (Generative Adversarial Networks)",
+    brief: "Train adversarial generator and discriminator models.",
+    category: "Generative AI",
+    difficulty: "Hard",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-gan-loop", name: "GAN Fundamentals & Training Loop", brief: "Minimax optimization of generator vs discriminator." },
+      { id: "cv-dcgan", name: "DCGAN Implementation", brief: "Using transpose convolutions to synthesize images." },
+      { id: "cv-cyclegan", name: "CycleGAN (Unpaired Image Translation)", brief: "Mapping styles across unaligned image sets." }
+    ]
+  },
+  {
+    id: "diffusion-models",
+    name: "Diffusion Models",
+    brief: "Generate high-fidelity images using denoising probability paths.",
+    category: "Generative AI",
+    difficulty: "Hard",
+    prerequisites: ["Semantic Segmentation", "Probability & Calculus"],
+    subtopics: [
+      { id: "cv-ddpm", name: "DDPM (Denoising Diffusion Probabilistic Models)", brief: "Forward noise addition and backward denoising loops." },
+      { id: "cv-stable-diff", name: "Stable Diffusion Architecture", brief: "Latent diffusion inside encoded vector spaces." },
+      { id: "cv-controlnet", name: "Controlnet & Guided Generation", brief: "Injecting spatial conditions into U-Net paths." }
+    ]
+  },
+  {
+    id: "vit",
+    name: "Vision Transformers (ViT)",
+    brief: "Apply self-attention mechanisms directly to image patch sequences.",
+    category: "Transformers & Attention",
+    difficulty: "Hard",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-vit-attn", name: "Self-Attention for Images", brief: "Computing query-key similarity matrices over patches." },
+      { id: "cv-vit-patches", name: "ViT Architecture & Patch Embeddings", brief: "Flattening 16x16 pixels into token vectors." },
+      { id: "cv-swin", name: "Swin Transformer & Hierarchical Features", brief: "Shifted window attention to reduce complexity." }
+    ]
+  },
+  {
+    id: "clip-multimodal",
+    name: "CLIP & Multimodal Vision",
+    brief: "Align text and image embeddings in shared contrastive spaces.",
+    category: "Transformers & Attention",
+    difficulty: "Hard",
+    prerequisites: ["Vision Transformers (ViT)"],
+    subtopics: [
+      { id: "cv-clip-contrastive", name: "Contrastive Learning for Vision-Language", brief: "Aligning matched image-text pairs in a batch." },
+      { id: "cv-clip-zeroshot", name: "Zero-Shot Classification with CLIP", brief: "Predicting image labels via dynamic text prompts." },
+      { id: "cv-clip-search", name: "Building a CLIP-based Image Search", brief: "Searching visual databases using natural language." }
+    ]
+  },
+  {
+    id: "video-understanding",
+    name: "Video Understanding",
+    brief: "Analyze temporal transitions and track objects across frames.",
+    category: "Deep Learning",
+    difficulty: "Medium-Hard",
+    prerequisites: ["Introduction to CNNs", "Optical Flow & Motion Estimation"],
+    subtopics: [
+      { id: "cv-video-io", name: "Frame Extraction & Video Processing", brief: "Handling video stream ingestion and encoding." },
+      { id: "cv-tracking", name: "Object Tracking (DeepSORT, ByteTrack)", brief: "Kalman filters and embedding associations." },
+      { id: "cv-action-rec", name: "Action Recognition (SlowFast, I3D)", brief: "Extracting features across spatial and temporal dimensions." }
+    ]
+  },
+  {
+    id: "face-detection-recognition",
+    name: "Face Detection & Recognition",
+    brief: "Detect human faces and associate them with identities.",
+    category: "Deep Learning",
+    difficulty: "Medium",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-classical-face", name: "Haar Cascades & HOG Detectors", brief: "Early face boundary detection heuristics." },
+      { id: "cv-mtcnn", name: "MTCNN & RetinaFace", brief: "Cascade deep networks for boundary localization." },
+      { id: "cv-facenet", name: "FaceNet Embeddings & Face Matching", brief: "Learning facial feature vectors using triplet loss." }
+    ]
+  },
+  {
+    id: "ocr-document-analysis",
+    name: "OCR & Document Analysis",
+    brief: "Segment layout boundaries and read character symbols in documents.",
+    category: "Deep Learning",
+    difficulty: "Medium",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-tesseract", name: "Tesseract OCR Pipeline", brief: "Text detection and character recognition pipeline." },
+      { id: "cv-scene-text", name: "Scene Text Detection (EAST, CRAFT)", brief: "Finding dynamic text rotated in natural scenes." },
+      { id: "cv-layout-analysis", name: "Document Layout Analysis", brief: "Parsing sections, tables, and paragraphs." }
+    ]
+  },
+  {
+    id: "pose-estimation",
+    name: "Pose Estimation",
+    brief: "Track human joint coordinates and body postures.",
+    category: "Deep Learning",
+    difficulty: "Medium-Hard",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-mediapipe", name: "OpenPose & MediaPipe", brief: "Real-time keypoint extraction pipelines." },
+      { id: "cv-hrnet", name: "HRNet Architecture", brief: "Preserving high-resolution features across network pipelines." },
+      { id: "cv-pose-apps", name: "Applications: Fitness, AR, Sign Language", brief: "Interpreting joint coordinates for motion logic." }
+    ]
+  },
+  {
+    id: "3d-vision-depth",
+    name: "3D Vision & Depth Estimation",
+    brief: "Generate point clouds and estimate scene depth from 2D views.",
+    category: "Geometry & Stereo",
+    difficulty: "Hard",
+    prerequisites: ["Camera Calibration & Stereo Vision"],
+    subtopics: [
+      { id: "cv-mono-depth", name: "Monocular Depth Estimation (MiDaS)", brief: "Predicting relative depth from a single camera frame." },
+      { id: "cv-point-clouds", name: "Point Clouds & PointNet", brief: "Processing unordered collections of 3D spatial points." },
+      { id: "cv-nerf", name: "NeRF (Neural Radiance Fields)", brief: "Synthesizing views using neural implicit representations." }
+    ]
+  },
+  {
+    id: "model-deployment-vision",
+    name: "Model Deployment for Vision",
+    brief: "Optimize and compile neural backbones for target runtimes.",
+    category: "MLOps",
+    difficulty: "Medium",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-onnx", name: "ONNX Export & Optimization", brief: "Translating PyTorch models to dynamic computation graphs." },
+      { id: "cv-tensorrt", name: "TensorRT & OpenVINO", brief: "Compiling models for Nvidia or Intel silicon layers." },
+      { id: "cv-edge-deploy", name: "Edge Deployment (Jetson Nano, Mobile)", brief: "Deploying models inside resource-constrained environments." }
+    ]
+  },
+  {
+    id: "data-augmentation-tricks",
+    name: "Data Augmentation & Training Tricks",
+    brief: "Increase dataset variety and optimize model robustness.",
+    category: "Deep Learning",
+    difficulty: "Easy-Medium",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-albumentations", name: "Albumentations Library", brief: "Creating fast, pixel-level bounding box augmentations." },
+      { id: "cv-aug-mix", name: "Mixup, Cutout, CutMix", brief: "Creating synthetic linear combination images." },
+      { id: "cv-class-imbalance", name: "Handling Class Imbalance", brief: "Focal Loss and weighted sample strategies." }
+    ]
+  },
+  {
+    id: "adversarial-robustness",
+    name: "Adversarial Attacks & Robustness",
+    brief: "Deconstruct models using adversarial perturbations and defend them.",
+    category: "Deep Learning",
+    difficulty: "Hard",
+    prerequisites: ["Introduction to CNNs", "Calculus (gradients)"],
+    subtopics: [
+      { id: "cv-attacks", name: "FGSM & PGD Attacks", brief: "Synthesizing input perturbations along loss gradients." },
+      { id: "cv-adv-training", name: "Adversarial Training", brief: "Injecting perturbed inputs into training loops." },
+      { id: "cv-robustness-eval", name: "Model Robustness Evaluation", brief: "Testing robustness against corruption and noise." }
+    ]
+  },
+  {
+    id: "self-supervised-vision",
+    name: "Self-Supervised Learning for Vision",
+    brief: "Learn visual features without human annotation labels.",
+    category: "Deep Learning",
+    difficulty: "Hard",
+    prerequisites: ["Introduction to CNNs", "Data Augmentation & Training Tricks"],
+    subtopics: [
+      { id: "cv-ssl-contrastive", name: "Contrastive Learning (SimCLR, MoCo)", brief: "Aligning positive views and pushing negative views." },
+      { id: "cv-mae", name: "Masked Autoencoders (MAE)", brief: "Reconstructing hidden patches of images." },
+      { id: "cv-dino-ssl", name: "DINO & Self-Distillation", brief: "Training ViT architectures without labels." }
+    ]
+  },
+  {
+    id: "explainability-interpretability",
+    name: "Explainability & Interpretability",
+    brief: "Understand model decisions using attribution maps.",
+    category: "Deep Learning",
+    difficulty: "Medium-Hard",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-gradcam", name: "Grad-CAM & Saliency Maps", brief: "Using final conv layer gradients to map focus areas." },
+      { id: "cv-shap", name: "SHAP for Image Models", brief: "Calculating game-theoretic pixel contributions." },
+      { id: "cv-feature-vis", name: "What Does the Network Actually See?", brief: "Synthesizing inputs that maximize activations." }
+    ]
+  },
+  {
+    id: "end-to-end-projects",
+    name: "End-to-End Projects",
+    brief: "Build functional production computer vision projects.",
+    category: "Projects",
+    difficulty: "Mixed",
+    prerequisites: ["Deep Learning & Classical CV basics"],
+    subtopics: [
+      { id: "cv-proj-alpr", name: "Build a Real-Time License Plate Reader [Medium]", brief: "YOLO detection + OCR recognition pipeline." },
+      { id: "cv-proj-search", name: "Build a Visual Search Engine [Hard]", brief: "Feature database retrieval using vector embeddings." },
+      { id: "cv-proj-defect", name: "Build a Defect Detection System (Manufacturing) [Hard]", brief: "Anomaly segmentation under strict timing limits." },
+      { id: "cv-proj-filter", name: "Build an AR Filter (Face Mesh + Overlay) [Medium]", brief: "MediaPipe keypoint tracking + image mapping." },
+      { id: "cv-proj-scanner", name: "Build a Document Scanner App [Easy-Medium]", brief: "Contour perspective transformation + binarization." }
+    ]
+  }
 ];
 
 function getContent(sectionId: string, topic: CVTopic): string {
@@ -73,27 +488,27 @@ function getContent(sectionId: string, topic: CVTopic): string {
   const prereqs = topic.prerequisites.join(', ');
 
   const templates: Record<string, string> = {
-    prerequisites: `**Prerequisites for ${name}:**\n\n${topic.prerequisites.map((p, i) => `${i + 1}. **${p}** — Foundational understanding required before exploring this topic.`).join('\n')}\n\n**Why these matter:**\nWithout solid grounding in ${prereqs}, the mathematical derivations and intuition behind ${name} will be difficult to follow. Ensure you can derive backpropagation from scratch and understand matrix multiplication deeply.`,
+    prerequisites: `**Prerequisites for ${name}:**\n\n${topic.prerequisites.map((p, i) => `${i + 1}. **${p}** — Foundational understanding required before exploring this topic.`).join('\n')}\n\n**Why these matter:**\nWithout solid grounding in ${prereqs || 'basic mathematics'}, the mathematical derivations and intuition behind ${name} will be difficult to follow. Ensure you review these foundations before starting.`,
 
-    theory: `**Core Theory: ${name}**\n\n**Mathematical Foundation:**\nThe key operation is the discrete cross-correlation between an input feature map X and a learned filter K:\n\n(X ★ K)[i,j] = Σₘ Σₙ X[i+m, j+n] · K[m,n]\n\n**Key equations and concepts:**\n- Output spatial dimension: ⌊(W - F + 2P) / S⌋ + 1\n- Receptive field grows with depth: RF_l = RF_{l-1} + (F_l - 1) × S_prev\n- Parameter sharing: each filter has F×F×C_in parameters, shared across all spatial locations\n\n**Inductive biases baked in:**\n1. **Translation equivariance** — feature detected anywhere in image\n2. **Local connectivity** — nearby pixels are more related\n3. **Parameter sharing** — same feature detector used everywhere\n\n**What ViTs do differently:** No inductive bias — learns everything from data. Needs more data but generalises better at scale.`,
+    theory: `**Core Theory: ${name}**\n\n**Mathematical Foundation:**\nThe key operations in ${name} involve representing visual signals as multi-dimensional matrices and computing spatial or semantic features.\n\n- Grayscale representation: f(x, y) ∈ [0, 255]\n- Color representation: f(x, y) ∈ [0, 255]³ (e.g. RGB, HSV, LAB channels)\n- Convolutions compute local linear combinations: g(x, y) = ∑_dx ∑_dy f(x + dx, y + dy) · K(dx, dy)\n\n**Key principles and concepts:**\n- Locality — pixels close to each other are highly correlated.\n- Stationary statistics — visual features (like edges, textures) are invariant to translation.\n- Scale-space representation — structures exist across multiple resolutions.`,
 
-    visual: `**Visual Explanation & Architecture Flow**\n\nData flow through ${name}:\n\nInput Image [H×W×3]\n    ↓  Conv Layer 1 + BN + ReLU\n[H/2 × W/2 × 64]\n    ↓  Conv Layer 2 + BN + ReLU\n[H/4 × W/4 × 128]\n    ↓  ... (deeper stages)\n[H/32 × W/32 × 512]\n    ↓  Global Average Pooling\n[1 × 1 × 512]\n    ↓  Fully Connected\n[num_classes]\n\n**Key architectural choices:**\n- Batch Normalisation after every conv layer: stabilises training, allows higher LR\n- ReLU activation: sparse, computationally efficient, avoids vanishing gradient\n- Residual connections (ResNet): y = F(x) + x — gradient highway through identity mapping`,
+    visual: `**Visual Explanation & Architecture Flow**\n\nData flow and structure through ${name}:\n\nInput Tensor [H × W × C]\n    ↓  Pre-processing & Normalization\nNormalized Tensor\n    ↓  Feature Extraction / Classical Operations\nIntermediate Map\n    ↓  Analysis / Matching / Inference Pipeline\nOutput Predictions / Processed Image\n\n**Key architectural elements:**\n- Receptive Field size: determines the global context captured by each visual node.\n- Feature Maps: channels corresponding to specific filters or color distributions.\n- Linear layers or post-processing (NMS, thresholding) to compute final predictions.`,
 
-    implementation: `**Practical Implementation in PyTorch**\n\n\`\`\`python\nimport torch\nimport torch.nn as nn\nimport torchvision.transforms as T\nfrom torchvision.models import resnet50, ResNet50_Weights\n\n# ── Standard Preprocessing Pipeline ──────────────────────────────────\ntransform_train = T.Compose([\n    T.RandomResizedCrop(224),          # Data augmentation\n    T.RandomHorizontalFlip(p=0.5),     # Flip augmentation\n    T.ColorJitter(0.2, 0.2, 0.2),     # Color augmentation\n    T.ToTensor(),\n    T.Normalize(                        # ImageNet statistics\n        mean=[0.485, 0.456, 0.406],\n        std=[0.229, 0.224, 0.225]\n    )\n])\n\n# ── Load Pretrained Model ─────────────────────────────────────────────\nmodel = resnet50(weights=ResNet50_Weights.IMAGENET1K_V2)\n\n# Replace head for fine-tuning\nnum_classes = 10\nmodel.fc = nn.Linear(model.fc.in_features, num_classes)\n\n# Freeze backbone, only train head\nfor param in model.parameters():\n    param.requires_grad = False\nfor param in model.fc.parameters():\n    param.requires_grad = True  # Only fine-tune the head\n\n# ── Training Loop ─────────────────────────────────────────────────────\noptimizer = torch.optim.AdamW(model.fc.parameters(), lr=1e-3, weight_decay=1e-4)\nscheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50)\ncriterion = nn.CrossEntropyLoss(label_smoothing=0.1)  # Smoothing helps generalisation\n\nmodel.train()\nfor epoch in range(50):\n    for images, labels in dataloader:\n        images, labels = images.cuda(), labels.cuda()\n        \n        optimizer.zero_grad()\n        \n        with torch.cuda.amp.autocast():  # Mixed precision for speed\n            outputs = model(images)\n            loss = criterion(outputs, labels)\n        \n        scaler.scale(loss).backward()\n        scaler.step(optimizer)\n        scaler.update()\n    \n    scheduler.step()\n\`\`\``,
+    implementation: `**Practical Implementation**\n\n\`\`\`python\nimport numpy as np\nimport cv2\n\n# ── Basic Image Reading & Processing ──────────────────────────────────\ndef process_visual_feed(image_path):\n    # Load in BGR color space\n    img = cv2.imread(image_path)\n    if img is None:\n        raise FileNotFoundError(f"Could not load image at {image_path}")\n        \n    # Convert color space for analysis\n    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)\n    img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)\n    \n    # Normalize values for training / calculations\n    normalized = img_gray.astype(np.float32) / 255.0\n    return normalized\n\nprint("Computer Vision pipeline initialized successfully.")\n\`\`\``,
 
-    hyperparameters: `**Hyperparameters & Design Choices**\n\n**Learning Rate (most critical):**\n- Start: 1e-3 for fine-tuning head, 1e-4 for full training\n- Schedule: CosineAnnealing or OneCycleLR — both work well\n- Rule of thumb: linear scaling with batch size (LR = base_lr × batch_size / 256)\n\n**Batch Size:**\n- 32-256 for most setups\n- Larger → more stable gradients, needs LR scaling\n- Too large → generalisation penalty (sharp minima)\n\n**Regularisation:**\n- Weight decay: 1e-4 (AdamW), 5e-4 (SGD)\n- Label smoothing: 0.1 — prevents overconfident predictions\n- Dropout: 0.2-0.5 before classifier head\n- Stochastic depth (DropPath): 0.1-0.2 for deep transformers\n\n**Data Augmentation priority (most impactful first):**\n1. Random crop + flip — always use\n2. Colour jitter — moderate effect\n3. MixUp / CutMix — +1-2% on ImageNet\n4. RandAugment — strong for small datasets`,
+    hyperparameters: `**Hyperparameters & Design Choices**\n\n**Resolution Scales:**\n- Standard input size: 224x224 (good speed-accuracy tradeoff)\n- High-resolution: 512x512 or 1024x1024 (required for detailed OCR or small defects)\n\n**Kernel Sizes:**\n- 3x3 or 5x5: local feature extraction\n- 7x7 or 11x11: large receptive field (useful for early stage classical filters or input layers)\n\n**Threshold values:**\n- Binarization: global static threshold (e.g. 127) vs Otsu's automatic bimodal calculation\n- Block size for adaptive thresholds: must be an odd number (e.g. 3, 5, 11) relative to detail scale`,
 
-    pitfalls: `**Common Pitfalls & Debugging**\n\n**Training diverges (loss NaN or spikes):**\n- Check learning rate — likely too high\n- Check for NaN in inputs (normalise properly)\n- Gradient clipping: torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)\n- Check loss function — CrossEntropy expects raw logits, not softmax output\n\n**Model not converging:**\n- Verify data loading: print a batch, check labels are correct\n- Check normalisation — ImageNet stats don't apply to medical/satellite images\n- Overfit a single batch first — if it can't memorise 8 samples, architecture is wrong\n\n**Good validation metrics, poor production performance:**\n- Distribution shift — training and production data differ\n- Use adversarial validation to detect this\n- Add test-time augmentation (TTA) for robustness\n\n**Memory OOM:**\n- Reduce batch size or use gradient checkpointing\n- torch.cuda.empty_cache() between epochs\n- Use AMP (Automatic Mixed Precision) — halves memory`,
+    pitfalls: `**Common Pitfalls & Debugging**\n\n**Color Space Confusion (BGR vs RGB):**\n- OpenCV reads images in BGR format by default. Displaying them in Matplotlib or passing them to PyTorch backbones directly will swap Red and Blue channels.\n- Fix: \`img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)\`\n\n**Normalisation issues:**\n- Feeding float images [0.0, 1.0] to functions expecting integer values [0, 255] can lead to saturated white outputs or mathematical overflows.\n\n**Coordinates handling:**\n- Remember that pixel arrays are represented as (Height, Width, Channels), while bounding box/point coordinates are typically passed as (X, Y) which corresponds to (Col, Row).`,
 
-    applications: `**Real-World Applications of ${name}**\n\n**Autonomous Vehicles (Tesla, Waymo):**\n- Multi-camera perception stacks using CNN backbones\n- Real-time inference at 30+ FPS on automotive-grade hardware\n- Safety-critical → model uncertainty estimation is essential\n\n**Medical Imaging (Google Health, Paige.AI):**\n- Pathology slide analysis (gigapixel images)\n- Cancer detection at radiologist-level accuracy\n- Regulatory approval requires explainability (GRAD-CAM, SHAP)\n\n**Industrial Quality Control:**\n- Defect detection on production lines at 200+ FPS\n- Operates on edge devices (NVIDIA Jetson, Intel NCS)\n- Extremely high precision required (< 0.1% false positive)\n\n**Content Moderation (Meta, Google):**\n- Billions of images processed daily\n- Multi-label classification + severity scoring\n- Active learning pipeline to handle new violation types`,
+    applications: `**Real-World Applications of ${name}**\n\n- **Medical Diagnosis Systems:** Automated detection of anomalies in X-Ray and MRI images using custom segmentation lines.\n- **Quality Control in Smart Factories:** Rapid detection of surface scratches or structural components using high-speed camera sensors.\n- **Self-Driving Vehicles:** Real-time localization of lanes, pedestrians, and traffic signs under varying weather/light conditions.`,
 
-    interview: `**Important Interview Questions — ${name}**\n\n**Conceptual:**\n1. What is the difference between semantic segmentation and instance segmentation?\n2. Why do we use batch normalisation and where exactly is it placed?\n3. Explain the vanishing gradient problem and how ResNet solves it.\n4. What are the inductive biases of CNNs vs Vision Transformers?\n\n**Design/Architecture:**\n5. How would you design a real-time object detection system for autonomous driving?\n6. How do you handle class imbalance in a medical image classification task?\n7. Walk me through how you'd fine-tune a pretrained model on a new domain.\n\n**Coding:**\n8. Implement a 2D convolution from scratch in Python/NumPy.\n9. Write the forward pass of a residual block.\n\n**Detailed Answers:**\nFor Q3: The skip connection y = F(x) + x means gradients flow directly back through the identity mapping. Even if F(x) has dying gradients, ∂L/∂x = ∂L/∂y · (∂F(x)/∂x + I) ≥ ∂L/∂y. This prevents vanishing.`,
+    interview: `**Important Interview Questions — ${name}**\n\n**Conceptual:**\n1. What is the difference between HSV and RGB color spaces, and when would you use HSV?\n2. Explain how Otsu's thresholding dynamically determines the optimal split.\n3. What is the aperture size in edge detection and how does it affect noise sensitivity?\n\n**Coding:**\n4. Write a function in NumPy to rotate an image by 90 degrees clockwise without using cv2.\n5. Implement a simple 2D convolution kernel function over a 2D grayscale image.`,
 
-    comparison: `**Comparison with Alternatives**\n\n| Approach | Strengths | Weaknesses | Best For |\n|---|---|---|---|\n| CNN | Translation equivariance, efficient, well-understood | Limited global context | Medium datasets, production |\n| ViT | Global attention, scales with data | Data hungry, computationally expensive | Large-scale datasets |\n| Hybrid (ConvNeXt) | Best of both worlds | More complex | General purpose SOTA |\n| Classical CV | Interpretable, no training data | Limited generalisation | Structured environments |\n\n**When to choose what:**\n- < 10k images → CNN + heavy augmentation (ViT will overfit)\n- > 1M images → ViT or hybrid (CNN bottlenecks at scale)\n- Latency < 10ms → Quantized MobileNet/EfficientNet-Lite\n- Interpretability required → Classical + GRAD-CAM for CNN`,
+    comparison: `**Comparison with Alternatives**\n\n| Method | Computational Cost | Input Dependency | Edge Robustness |\n|---|---|---|---|\n| Classical Filter | Very Low | None | Sensitive to noise |\n| Shallow CNN | Medium | Requires training labels | Robust to variations |\n| Large Foundation (SAM/ViT) | High | Zero-shot generalization | Extremely robust |`,
 
-    paper: `**Research Context: ${name}**\n\n**Seminal Papers (chronological):**\n1. **LeNet-5 (LeCun, 1998)** — First practical CNN for digit recognition\n2. **AlexNet (Krizhevsky, 2012)** — Sparked deep learning revolution, ImageNet winner\n3. **VGGNet (Simonyan, 2014)** — Showed depth matters; 3×3 convolutions\n4. **ResNet (He, 2015)** — Skip connections; trained 152-layer networks\n5. **EfficientNet (Tan & Le, 2019)** — Compound scaling; NAS-found architecture\n6. **ViT (Dosovitskiy, 2020)** — "An image is worth 16×16 words"\n\n**Current state-of-the-art (2024):**\n- InternViT-6B, EVA, SigLIP — foundation models for vision\n- ConvNeXt V2 — CNN competitive with transformers at scale\n- DINOv2 — self-supervised ViT features transfer well\n\n**Key journals/venues:** CVPR, ICCV, ECCV, NeurIPS, ICLR, TPAMI`,
+    paper: `**Research Context: ${name}**\n\nHistorically, computer vision evolved from manual feature engineering (edge kernels, SIFT descriptors, morphological filters) to automated hierarchical representation learning using deep neural networks.\n\n**Core papers of interest:**\n- Canny (1986) — A Computational Approach to Edge Detection\n- Viola-Jones (2001) — Robust Real-time Face Detection\n- Dosovitskiy et al. (2020) — An Image is Worth 16x16 Words (ViT)`,
 
-    references: `**References & Resources**\n\n📚 **Courses:**\n- CS231n (Stanford) — Convolutional Neural Networks for Visual Recognition (free online)\n- fast.ai Practical Deep Learning — top-down, code-first approach\n- d2l.ai — Dive into Deep Learning (interactive textbook)\n\n🔬 **Papers:**\n- Papers With Code (paperswithcode.com) — leaderboards + implementations\n- arXiv cs.CV — latest preprints\n- Semantic Scholar — citation tracking\n\n🛠️ **Code & Tools:**\n- PyTorch official tutorials (pytorch.org/tutorials)\n- Hugging Face timm library — 700+ pretrained CV models\n- torchvision models — standard backbone implementations\n- TIMM (Wightman) — state-of-the-art image models\n\n📹 **Videos:**\n- Yannic Kilcher (paper explanations)\n- Andrej Karpathy's lectures and talks`,
+    references: `**References & Resources**\n\n- OpenCV Documentation (docs.opencv.org)\n- Stanford CS231n: Deep Learning for Computer Vision\n- Richard Szeliski's textbook: "Computer Vision: Algorithms and Applications"\n- Albumentations Library documentation (albumentations.ai)`
   };
 
   return templates[sectionId] ?? `**${name} — ${sectionId}**\n\nProfessional-grade content for this section covering ${name} in depth. This material is formatted for interview preparation and production engineering contexts.`;
@@ -103,7 +518,7 @@ const SECTION_DEFS = [
   { id: 'prerequisites', label: 'Prerequisites', icon: 'AcademicCapIcon', subtitle: 'What to know before diving in' },
   { id: 'theory', label: 'Core Theory', icon: 'CalculatorIcon', subtitle: 'Mathematical foundations + equations' },
   { id: 'visual', label: 'Visual Explanation & Architecture', icon: 'PhotoIcon', subtitle: 'Data flow diagrams + architecture' },
-  { id: 'implementation', label: 'Practical Implementation', icon: 'CodeBracketIcon', subtitle: 'PyTorch code, end-to-end' },
+  { id: 'implementation', label: 'Practical Implementation', icon: 'CodeBracketIcon', subtitle: 'OpenCV / PyTorch code examples' },
   { id: 'hyperparameters', label: 'Hyperparameters & Design Choices', icon: 'AdjustmentsHorizontalIcon', subtitle: 'What to tune, typical values, tradeoffs' },
   { id: 'pitfalls', label: 'Common Pitfalls & Debugging', icon: 'BugAntIcon', subtitle: 'What goes wrong and how to fix it' },
   { id: 'applications', label: 'Real-World Applications', icon: 'BuildingOffice2Icon', subtitle: 'Industry use cases + company examples' },
@@ -111,32 +526,59 @@ const SECTION_DEFS = [
   { id: 'comparison', label: 'Comparison with Alternatives', icon: 'ScaleIcon', subtitle: 'Tradeoff table + when to use each' },
   { id: 'paper', label: 'Paper & Research Context', icon: 'DocumentMagnifyingGlassIcon', subtitle: 'Original paper + SOTA evolution' },
   { id: 'quiz', label: 'Quiz', icon: 'TrophyIcon', subtitle: '4 questions, score tracked, generate more' },
-  { id: 'references', label: 'References & Resources', icon: 'BookOpenIcon', subtitle: 'CS231n, Papers With Code, PyTorch docs' },
+  { id: 'references', label: 'References & Resources', icon: 'BookOpenIcon', subtitle: 'CS231n, Papers With Code, OpenCV docs' },
 ];
 
 const QUIZ_BANK = [
-  { q: 'What inductive bias do CNNs have that ViTs lack?', options: ['Depth invariance', 'Translation equivariance + local connectivity', 'Global attention', 'Rotation invariance'], answer: 1, explanation: 'CNNs assume nearby pixels are correlated (local connectivity) and features should be detected regardless of position (translation equivariance). ViTs learn these from data with no such prior.' },
-  { q: 'What problem do skip connections (ResNets) solve?', options: ['Overfitting', 'Vanishing gradients in deep networks', 'Slow inference', 'Large parameter count'], answer: 1, explanation: 'Skip connections create a gradient highway: ∂L/∂x includes an identity term (+I), ensuring gradients flow even through very deep networks.' },
-  { q: 'What does IoU measure in object detection?', options: ['Model accuracy', 'Intersection over Union of predicted and ground truth boxes', 'Image quality score', 'Inference latency'], answer: 1, explanation: 'IoU = Area(Intersection) / Area(Union). Values > 0.5 are typically considered "correct" detections.' },
-  { q: 'Why is batch normalisation placed before or after activation?', options: ['Always before', 'Always after', 'Before activation (pre-BN) for transformers, after for CNNs', 'The order doesn\'t matter'], answer: 2, explanation: 'Original ResNet uses BN → ReLU. Modern transformers use Pre-LN (norm before attention). Pre-BN generally trains more stably in very deep networks.' },
+  { q: 'Why is the HSV color space preferred over RGB for color-based object segmentation?', options: ['It uses fewer channels', 'It separates intensity/value from color/hue information', 'It is computationally faster to read', 'RGB is deprecated'], answer: 1, explanation: 'In HSV, Hue represents pure color. This isolates color values from illumination and shadowing variations (which affect Saturation and Value), making thresholding far more robust.' },
+  { q: 'What is the mathematical definition of a Sobel kernel in the X direction?', options: ['A symmetric blur kernel', 'A derivative filter approximating horizontal gradients', 'An identity matrix', 'A high pass sharpening kernel'], answer: 1, explanation: 'The Sobel X operator estimates the horizontal gradient of an image (change in intensity from left to right) using local differentiation.' },
+  { q: 'In Canny edge detection, what is the purpose of non-maximum suppression?', options: ['To remove color channels', 'To thin the detected edge boundaries into single-pixel wide lines', 'To increase the thickness of edges', 'To normalise lighting gradients'], answer: 1, explanation: 'Non-maximum suppression suppresses all gradient values that are not local maxima along the gradient direction, keeping only the thin ridge lines.' },
+  { q: 'What is the main difference between Erosion and Dilation in mathematical morphology?', options: ['Erosion expands white regions; Dilation shrinks them', 'Erosion shrinks white regions; Dilation expands them', 'Dilation is only for color images', 'Erosion removes high frequencies'], answer: 1, explanation: 'Erosion shrinks foreground objects (binary 1s) by requiring all structural element pixels to fit, while Dilation expands boundaries.' },
 ];
+
+function diffColor(d: string) {
+  if (d === 'Easy') return 'text-success bg-success/10';
+  if (d === 'Easy-Medium') return 'text-success/80 bg-success/5 border border-success/10';
+  if (d === 'Medium') return 'text-warning bg-warning/10';
+  if (d === 'Medium-Hard') return 'text-warning/80 bg-warning/5 border border-warning/10';
+  if (d === 'Mixed') return 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/10';
+  return 'text-error bg-error/10';
+}
 
 function initSections(): Record<string, SectionState> {
   return Object.fromEntries(SECTION_DEFS.map(s => [s.id, { generated: false, generating: false, content: '' }]));
 }
 
 export default function CVLabInteractive() {
-  const [topics] = useState<CVTopic[]>(TOPICS);
-  const [selectedTopicId, setSelectedTopicId] = useState('cnn');
+  const [topics, setTopics] = useState<CVTopic[]>(TOPICS);
+  const [selectedTopicId, setSelectedTopicId] = useState('image-basics');
   const [selectedSubtopicId, setSelectedSubtopicId] = useState<string | null>(null);
-  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set(['cnn']));
-  const [sections, setSections] = useState<Record<string, SectionState>>({});
+  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set(['image-basics']));
+  const [sections, setSections] = useState<Record<string, SectionState>>(initSections());
   const [newTopicInput, setNewTopicInput] = useState('');
   const [addingTopic, setAddingTopic] = useState(false);
-  const [customTopics, setCustomTopics] = useState<CVTopic[]>([]);
   const [quizBatch, setQuizBatch] = useState(0);
 
-  const allTopics = [...topics, ...customTopics];
+  useEffect(() => {
+    fetch('http://localhost:8000/cv/topics')
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then((data: CVTopic[]) => {
+        if (data && data.length > 0) {
+          setTopics(data);
+        } else {
+          setTopics(TOPICS);
+        }
+      })
+      .catch(err => {
+        console.error("Error fetching CV topics, falling back to static list:", err);
+        setTopics(TOPICS);
+      });
+  }, []);
+
+  const allTopics = topics.length > 0 ? topics : TOPICS;
   const currentTopic = allTopics.find(t => t.id === selectedTopicId) ?? null;
   const currentSubtopic = currentTopic?.subtopics.find(s => s.id === selectedSubtopicId) ?? null;
   const contextLabel = currentSubtopic?.name ?? currentTopic?.name ?? 'Computer Vision';
@@ -163,7 +605,11 @@ export default function CVLabInteractive() {
     setSelectedSubtopicId(null);
     setSections(initSections());
     setQuizBatch(0);
-    setExpandedTopics(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setExpandedTopics(prev => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
   };
 
   const selectSubtopic = (topicId: string, subId: string) => {
@@ -186,16 +632,36 @@ export default function CVLabInteractive() {
   const handleAddTopic = () => {
     if (!newTopicInput.trim()) return;
     setAddingTopic(true);
-    setTimeout(() => {
-      const t: CVTopic = {
-        id: `custom-${Date.now()}`, name: newTopicInput.trim(), brief: 'Custom CV topic.', category: 'Custom',
-        prerequisites: ['Computer Vision Basics'],
-        subtopics: [{ id: `sub-${Date.now()}`, name: 'Core Concepts', brief: 'Fundamental concepts.' }],
-      };
-      setCustomTopics(prev => [...prev, t]);
-      setNewTopicInput('');
-      setAddingTopic(false);
-    }, 1000);
+    const newTopic: CVTopic = {
+      id: `custom-${Date.now()}`,
+      name: newTopicInput.trim(),
+      brief: 'Custom CV topic.',
+      category: 'Custom',
+      difficulty: 'Medium',
+      prerequisites: ['Computer Vision Basics'],
+      subtopics: [{ id: `sub-${Date.now()}`, name: 'Core Concepts', brief: 'Fundamental concepts.' }]
+    };
+
+    fetch('http://localhost:8000/cv/topics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newTopic)
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then(() => {
+        setTopics(prev => [...prev, newTopic]);
+        setNewTopicInput('');
+        setAddingTopic(false);
+      })
+      .catch(err => {
+        console.error("Error saving custom topic to DB, saving in client state as fallback:", err);
+        setTopics(prev => [...prev, newTopic]);
+        setNewTopicInput('');
+        setAddingTopic(false);
+      });
   };
 
   return (
@@ -215,13 +681,22 @@ export default function CVLabInteractive() {
             {allTopics.map(topic => (
               <div key={topic.id}>
                 <button onClick={() => selectTopic(topic.id)}
-                  className={`w-full text-left flex items-center gap-8 px-14 py-9 text-xs font-semibold transition-smooth hover:bg-muted ${selectedTopicId === topic.id && !selectedSubtopicId ? 'bg-primary/10 text-primary border-r-2 border-primary' : 'text-foreground'}`}>
-                  <Icon name="EyeIcon" size={12} />
-                  <span className="flex-1 truncate">{topic.name}</span>
-                  <span className="text-[10px] text-muted-foreground bg-muted px-5 py-2 rounded flex-shrink-0">{topic.category}</span>
-                  <Icon name={expandedTopics.has(topic.id) ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={11} className="text-muted-foreground flex-shrink-0" />
+                  className={`w-full text-left flex items-start gap-8 px-14 py-9 text-xs font-semibold transition-smooth hover:bg-muted ${selectedTopicId === topic.id && !selectedSubtopicId ? 'bg-primary/10 text-primary border-r-2 border-primary' : 'text-foreground'}`}>
+                  <Icon name="EyeIcon" size={12} className="flex-shrink-0 mt-3" />
+                  <div className="flex-1 min-w-0">
+                    <span className="block truncate">{topic.name}</span>
+                    <div className="flex items-center gap-6 mt-2 flex-wrap">
+                      <span className={`text-[9px] px-5 py-1 rounded font-medium leading-none ${diffColor(topic.difficulty)}`}>
+                        {topic.difficulty}
+                      </span>
+                      <span className="text-[9px] text-muted-foreground opacity-85 leading-none">
+                        {topic.category}
+                      </span>
+                    </div>
+                  </div>
+                  <Icon name={expandedTopics.has(topic.id) ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={11} className="text-muted-foreground flex-shrink-0 mt-3" />
                 </button>
-                {expandedTopics.has(topic.id) && (
+                {expandedTopics.has(topic.id) && topic.subtopics.length > 0 && (
                   <div>
                     {topic.subtopics.map(sub => (
                       <button key={sub.id} onClick={() => selectSubtopic(topic.id, sub.id)}
@@ -263,6 +738,7 @@ export default function CVLabInteractive() {
               <div className="bg-card border border-border rounded-lg p-20 shadow-sm">
                 <div className="flex items-center gap-9 mb-9">
                   <span className="text-xs bg-primary/10 text-primary px-9 py-4 rounded-md">{currentTopic.category}</span>
+                  <span className={`text-xs px-9 py-4 rounded-md font-semibold ${diffColor(currentTopic.difficulty)}`}>{currentTopic.difficulty}</span>
                   {currentSubtopic && <span className="text-xs bg-secondary/10 text-secondary px-9 py-4 rounded-md">Subtopic</span>}
                 </div>
                 <h1 className="font-heading text-2xl font-bold text-foreground mb-6">

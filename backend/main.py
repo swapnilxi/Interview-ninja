@@ -33,6 +33,10 @@ from interview_ninja.db import (
     fetch_progress_stats,
     fetch_settings,
     save_settings,
+    fetch_system_design_topics,
+    save_system_design_topic,
+    fetch_cv_topics,
+    save_cv_topic,
 )
 from interview_ninja.export_md import render_markdown_for_day
 
@@ -262,6 +266,61 @@ async def export_markdown(
         raise HTTPException(status_code=404, detail="No questions found for this date")
 
     return render_markdown_for_day(records, session_date=session_date)
+
+
+class SDSubtopicIn(BaseModel):
+    id: str
+    name: str
+    brief: str
+
+
+class SDTopicIn(BaseModel):
+    id: str
+    name: str
+    brief: str
+    category: str
+    scale: str
+    difficulty: str
+    isLLD: bool = False
+    subtopics: List[SDSubtopicIn] = Field(default_factory=list)
+
+
+@app.get("/system-design/topics")
+async def get_system_design_topics_endpoint() -> List[dict]:
+    return fetch_system_design_topics()
+
+
+@app.post("/system-design/topics")
+async def save_system_design_topic_endpoint(payload: SDTopicIn) -> dict:
+    save_system_design_topic(payload.model_dump())
+    return {"status": "success"}
+
+
+class CVSubtopicIn(BaseModel):
+    id: str
+    name: str
+    brief: str
+
+
+class CVTopicIn(BaseModel):
+    id: str
+    name: str
+    brief: str
+    category: str
+    difficulty: str
+    prerequisites: List[str] = Field(default_factory=list)
+    subtopics: List[CVSubtopicIn] = Field(default_factory=list)
+
+
+@app.get("/cv/topics")
+async def get_cv_topics_endpoint() -> List[dict]:
+    return fetch_cv_topics()
+
+
+@app.post("/cv/topics")
+async def save_cv_topic_endpoint(payload: CVTopicIn) -> dict:
+    save_cv_topic(payload.model_dump())
+    return {"status": "success"}
 
 
 # To run locally:
