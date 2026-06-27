@@ -1211,7 +1211,7 @@ export default function SystemDesignLabInteractive() {
                           LLD
                         </span>
                       )}
-                      <span className="text-xs bg-muted text-muted-foreground px-9 py-4 rounded-md font-code">Scale: {currentTopic.scale}</span>
+                      <span className="text-xs bg-muted text-muted-foreground px-9 py-4 rounded-md font-medium">Scale: {currentTopic.scale}</span>
                       {currentSubtopic && <span className="text-xs bg-secondary/10 text-secondary px-9 py-4 rounded-md">Deep Dive</span>}
                     </div>
                     <h1 className="font-heading text-2xl font-bold text-foreground mb-6">{currentSubtopic?.name ?? currentTopic.name}</h1>

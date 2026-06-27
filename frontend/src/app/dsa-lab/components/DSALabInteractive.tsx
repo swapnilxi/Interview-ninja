@@ -17,6 +17,33 @@ interface DSATopic {
   subtopics: { id: string; name: string; brief: string }[];
   isCustom?: boolean;
 }
+const STATIC_DSA_TOPICS: DSATopic[] = [
+  {
+    id: "dsa-arrays-1",
+    name: "Two Pointers",
+    brief: "Use two pointers to iterate through an array or list to solve problems like Two Sum or detecting palindromes.",
+    category: "Arrays & Strings",
+    difficulty: "Medium",
+    prerequisites: ["Arrays", "Loops"],
+    subtopics: [
+      { id: "sub-1", name: "Two Sum II", brief: "Find two numbers in a sorted array that add up to a target." },
+      { id: "sub-2", name: "Container With Most Water", brief: "Find two lines that together with the x-axis form a container, such that the container contains the most water." }
+    ]
+  },
+  {
+    id: "dsa-trees-1",
+    name: "Depth-First Search (DFS)",
+    brief: "Traverse a tree or graph by exploring as far as possible along each branch before backtracking.",
+    category: "Trees & Graphs",
+    difficulty: "Medium",
+    prerequisites: ["Trees", "Recursion"],
+    subtopics: [
+      { id: "sub-3", name: "Maximum Depth of Binary Tree", brief: "Find the maximum depth of a binary tree." },
+      { id: "sub-4", name: "Lowest Common Ancestor", brief: "Find the lowest common ancestor of two nodes in a binary tree." }
+    ]
+  }
+];
+
 interface SectionState { generated: boolean; generating: boolean; content: string }
 
 /* ─────────────────────────────────────────── helpers ─────────────────────── */
@@ -217,8 +244,8 @@ export default function DSALabInteractive() {
 
     fetch('http://localhost:8000/dsa/topics')
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then((data: DSATopic[]) => { if (data?.length) setTopics(data); })
-      .catch(e => console.error('topics:', e));
+      .then((data: DSATopic[]) => { if (data?.length) { setTopics(data); } else { setTopics(STATIC_DSA_TOPICS); } })
+      .catch(e => { console.error('topics:', e); setTopics(STATIC_DSA_TOPICS); });
   }, []);
 
   /* ── derived ── */

@@ -451,11 +451,11 @@ export default function DailySessionInteractive() {
       {/* Session Controls Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-12 bg-muted/40 p-18 border border-border rounded-lg shadow-sm">
         <div className="flex items-center gap-12">
-          <span className="px-12 py-6 rounded-md bg-primary/10 text-primary font-code text-sm flex items-center gap-6">
+          <span className="px-12 py-6 rounded-md bg-primary/10 text-primary font-medium text-sm flex items-center gap-6">
             <Icon name="ClockIcon" size={16} />
             {formatTime(elapsedSeconds)}
           </span>
-          <span className="px-12 py-6 rounded-md bg-card border border-border text-foreground font-code text-sm">
+          <span className="px-12 py-6 rounded-md bg-card border border-border text-foreground font-medium text-sm">
             Session Date: {sessionDate}
           </span>
           <span className="text-sm text-muted-foreground">
@@ -597,7 +597,7 @@ export default function DailySessionInteractive() {
                   <Icon name="CpuChipIcon" size={18} variant="outline" className="text-secondary" />
                   <h5 className="font-heading text-sm font-semibold text-foreground">Technical Breakdown</h5>
                 </div>
-                <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap font-code">
+                <p className="text-[13px] text-foreground leading-relaxed whitespace-pre-wrap font-body bg-muted/30 p-12 rounded-md">
                   {activeExplanation.detail}
                 </p>
               </div>
