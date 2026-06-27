@@ -1,396 +1,1032 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/AppIcon';
 import LabCopilot from '@/components/common/LabCopilot';
 import OnDemandSection from '@/components/lab/OnDemandSection';
 import QuizCarousel from '@/components/lab/QuizCarousel';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-interface DSAProblem {
+interface DSATopic {
   id: string;
   name: string;
-  lcNumber: number | null;
   brief: string;
-  difficulty: 'Easy' | 'Medium' | 'Hard';
-  pattern: string;
-  tags: string[];
+  category: string;
+  difficulty: string;
+  prerequisites: string[];
+  subtopics: { id: string; name: string; brief: string }[];
+  isCustom?: boolean;
 }
-interface TopicGroup {
-  id: string; label: string; icon: string;
-  problems: DSAProblem[];
-  references: { id: string; label: string }[];
-}
-interface SectionState { generated: boolean; generating: boolean; content: string }
 
-// ─── Problem Data ─────────────────────────────────────────────────────────────
-const TOPICS: TopicGroup[] = [
+interface SectionState {
+  generated: boolean;
+  generating: boolean;
+  content: string;
+}
+
+const TOPICS: DSATopic[] = [
   {
-    id: 'arrays', label: 'Arrays & Hashing', icon: 'TableCellsIcon',
-    references: [
-      { id: 'ref-hash', label: '📚 Hash Map Internals & Collision Resolution' },
-      { id: 'ref-prefix', label: '📚 Prefix Sum Patterns' },
-    ],
-    problems: [
-      { id: 'two-sum', name: 'Two Sum', lcNumber: 1, brief: 'Find two indices summing to target using hash map.', difficulty: 'Easy', pattern: 'Hash Map', tags: ['hash-map', 'complement'] },
-      { id: 'top-k', name: 'Top K Frequent Elements', lcNumber: 347, brief: 'Return k most frequent elements via bucket sort.', difficulty: 'Medium', pattern: 'Bucket Sort / Heap', tags: ['hash-map', 'heap', 'bucket-sort'] },
-      { id: 'product-except', name: 'Product of Array Except Self', lcNumber: 238, brief: 'Prefix+postfix product without division, O(n).', difficulty: 'Medium', pattern: 'Prefix/Postfix', tags: ['prefix-sum', 'arrays'] },
-      { id: 'longest-consec', name: 'Longest Consecutive Sequence', lcNumber: 128, brief: 'O(n) solution using hash set streak detection.', difficulty: 'Hard', pattern: 'Hash Set', tags: ['hash-set', 'greedy'] },
-    ],
+    id: "image-basics",
+    name: "Image Basics & Representation",
+    brief: "Learn pixels, channels, and basic operations with OpenCV.",
+    category: "Fundamentals",
+    difficulty: "Easy",
+    prerequisites: ["Basic Python", "NumPy"],
+    subtopics: [
+      { id: "cv-pixels", name: "Pixels, Channels, Color Spaces (RGB, HSV, LAB)", brief: "Understanding how images are represented in memory." },
+      { id: "cv-io", name: "Image Reading, Writing, Display with OpenCV", brief: "Loading, displaying, and saving images using cv2." },
+      { id: "cv-transforms", name: "Image Resizing, Cropping, Rotation", brief: "Primary geometric manipulation operations." }
+    ]
   },
   {
-    id: 'two-pointers', label: 'Two Pointers / Sliding Window', icon: 'ArrowsRightLeftIcon',
-    references: [{ id: 'ref-sw', label: '📚 Sliding Window Patterns Catalog' }],
-    problems: [
-      { id: 'min-window', name: 'Minimum Window Substring', lcNumber: 76, brief: 'Smallest window containing all chars of t.', difficulty: 'Hard', pattern: 'Sliding Window', tags: ['sliding-window', 'hash-map'] },
-      { id: 'longest-no-repeat', name: 'Longest Substring Without Repeating', lcNumber: 3, brief: 'Max length substring with no duplicates.', difficulty: 'Medium', pattern: 'Sliding Window', tags: ['sliding-window'] },
-      { id: 'three-sum', name: '3Sum', lcNumber: 15, brief: 'Find all triplets summing to zero.', difficulty: 'Medium', pattern: 'Two Pointers', tags: ['two-pointers', 'sorting'] },
-    ],
+    id: "filtering-convolution",
+    name: "Image Filtering & Convolution",
+    brief: "Understand spatial filtering and kernel-based image convolution.",
+    category: "Classical CV",
+    difficulty: "Easy",
+    prerequisites: ["Image Basics", "2D Convolution Math"],
+    subtopics: [
+      { id: "cv-kernels", name: "Kernels & Convolution Operation", brief: "Mathematical concept of moving a kernel over an image." },
+      { id: "cv-blurs", name: "Gaussian Blur & Box Blur", brief: "Image smoothing techniques and low-pass filtering." },
+      { id: "cv-sharpen", name: "Sharpening Filters", brief: "Enhancing image high-frequency details." }
+    ]
   },
   {
-    id: 'binary-search', label: 'Binary Search', icon: 'MagnifyingGlassIcon',
-    references: [{ id: 'ref-bs', label: '📚 Binary Search on Answer Pattern' }],
-    problems: [
-      { id: 'search-rotated', name: 'Search in Rotated Sorted Array', lcNumber: 33, brief: 'Binary search with rotated pivot detection.', difficulty: 'Medium', pattern: 'Binary Search', tags: ['binary-search'] },
-      { id: 'median-two', name: 'Median of Two Sorted Arrays', lcNumber: 4, brief: 'O(log(m+n)) median via binary search partitioning.', difficulty: 'Hard', pattern: 'Binary Search', tags: ['binary-search', 'divide-conquer'] },
-      { id: 'koko', name: 'Koko Eating Bananas', lcNumber: 875, brief: 'Binary search on answer for minimum eating speed.', difficulty: 'Medium', pattern: 'Binary Search on Answer', tags: ['binary-search-on-answer'] },
-    ],
+    id: "thresholding-binarization",
+    name: "Thresholding & Binarization",
+    brief: "Convert grayscale images to binary using global or local thresholding.",
+    category: "Classical CV",
+    difficulty: "Easy",
+    prerequisites: ["Image Basics"],
+    subtopics: [
+      { id: "cv-otsu", name: "Global Thresholding (Otsu's Method)", brief: "Automatic thresholding based on bimodal histograms." },
+      { id: "cv-adaptive-thresh", name: "Adaptive Thresholding", brief: "Local binarization under uneven lighting conditions." },
+      { id: "cv-color-mask", name: "Color-based Segmentation (HSV masking)", brief: "Isolating colored objects in HSV color space." }
+    ]
   },
   {
-    id: 'trees', label: 'Trees & Graphs', icon: 'ShareIcon',
-    references: [
-      { id: 'ref-bfs-dfs', label: '📚 BFS vs DFS Decision Framework' },
-      { id: 'ref-uf', label: '📚 Union-Find & Disjoint Sets' },
-    ],
-    problems: [
-      { id: 'num-islands', name: 'Number of Islands', lcNumber: 200, brief: 'Count connected components via BFS/DFS.', difficulty: 'Medium', pattern: 'DFS / BFS', tags: ['graph', 'dfs', 'bfs'] },
-      { id: 'course-schedule', name: 'Course Schedule', lcNumber: 207, brief: 'Cycle detection via topological sort.', difficulty: 'Medium', pattern: 'Topological Sort', tags: ['graph', 'topological-sort', 'cycle-detection'] },
-      { id: 'lca', name: 'Lowest Common Ancestor of BST', lcNumber: 235, brief: 'Use BST property for efficient LCA.', difficulty: 'Medium', pattern: 'Tree DFS', tags: ['bst', 'dfs', 'tree'] },
-      { id: 'word-ladder', name: 'Word Ladder', lcNumber: 127, brief: 'Shortest transformation sequence via BFS.', difficulty: 'Hard', pattern: 'BFS', tags: ['bfs', 'graph', 'string'] },
-    ],
+    id: "edge-detection",
+    name: "Edge Detection",
+    brief: "Detect spatial boundaries and high-contrast lines in images.",
+    category: "Classical CV",
+    difficulty: "Easy-Medium",
+    prerequisites: ["Filtering & Convolution"],
+    subtopics: [
+      { id: "cv-gradients", name: "Sobel & Laplacian Operators", brief: "Calculating first and second order spatial derivatives." },
+      { id: "cv-canny", name: "Canny Edge Detection", brief: "Multi-stage edge detector with hysteresis thresholding." },
+      { id: "cv-edge-realworld", name: "Edge Detection for Real-World Images", brief: "Handling noise and scaling parameter adjustments." }
+    ]
   },
   {
-    id: 'dp', label: 'Dynamic Programming', icon: 'ChartBarIcon',
-    references: [
-      { id: 'ref-dp-patterns', label: '📚 DP Pattern Recognition Guide' },
-      { id: 'ref-dp-opt', label: '📚 Space Optimization in DP' },
-    ],
-    problems: [
-      { id: 'coin-change', name: 'Coin Change', lcNumber: 322, brief: 'Minimum coins via unbounded knapsack DP.', difficulty: 'Medium', pattern: 'Unbounded Knapsack DP', tags: ['dp', 'bfs'] },
-      { id: 'lcs', name: 'Longest Common Subsequence', lcNumber: 1143, brief: '2D DP table for LCS length.', difficulty: 'Medium', pattern: '2D DP', tags: ['dp', 'string'] },
-      { id: 'burst-balloons', name: 'Burst Balloons', lcNumber: 312, brief: 'Interval DP with reverse thinking.', difficulty: 'Hard', pattern: 'Interval DP', tags: ['dp', 'interval'] },
-      { id: 'edit-distance', name: 'Edit Distance', lcNumber: 72, brief: 'Levenshtein distance via 2D DP.', difficulty: 'Hard', pattern: '2D DP', tags: ['dp', 'string'] },
-    ],
+    id: "morphological",
+    name: "Morphological Operations",
+    brief: "Perform mathematical morphology on binary shapes.",
+    category: "Classical CV",
+    difficulty: "Easy",
+    prerequisites: ["Thresholding & Binarization"],
+    subtopics: [
+      { id: "cv-erosion-dilation", name: "Erosion, Dilation", brief: "Shrinking or expanding binary shapes." },
+      { id: "cv-open-close", name: "Opening, Closing", brief: "Opening and closing operations." },
+      { id: "cv-morph-noise", name: "Morphological Noise Removal", brief: "Combining operators to isolate structures." }
+    ]
   },
   {
-    id: 'heap', label: 'Heaps & Priority Queues', icon: 'FunnelIcon',
-    references: [{ id: 'ref-heap', label: '📚 Heap Internals & heapq in Python' }],
-    problems: [
-      { id: 'find-median', name: 'Find Median from Data Stream', lcNumber: 295, brief: 'Two heaps (max-heap + min-heap) for O(log n) median.', difficulty: 'Hard', pattern: 'Two Heaps', tags: ['heap', 'design'] },
-      { id: 'task-scheduler', name: 'Task Scheduler', lcNumber: 621, brief: 'Greedy scheduling using max-heap + cooldown.', difficulty: 'Medium', pattern: 'Greedy + Heap', tags: ['heap', 'greedy'] },
-    ],
+    id: "contour-detection",
+    name: "Contour Detection & Shape Analysis",
+    brief: "Find, analyze, and classify geometric boundaries in binary images.",
+    category: "Classical CV",
+    difficulty: "Medium",
+    prerequisites: ["Thresholding & Binarization", "Edge Detection"],
+    subtopics: [
+      { id: "cv-find-contours", name: "Finding & Drawing Contours", brief: "Extracting curves representing boundaries." },
+      { id: "cv-contour-props", name: "Contour Properties (area, perimeter, bounding box)", brief: "Computing geometric indicators of a contour." },
+      { id: "cv-shape-class", name: "Shape Classification using Contours", brief: "Sorting contours by circularity or aspect ratio." }
+    ]
   },
+  {
+    id: "feature-detection",
+    name: "Feature Detection & Matching",
+    brief: "Detect robust keypoints and associate them across multiple viewpoints.",
+    category: "Classical CV",
+    difficulty: "Medium",
+    prerequisites: ["Filtering & Convolution", "Linear Algebra"],
+    subtopics: [
+      { id: "cv-harris", name: "Harris Corner Detection", brief: "Detecting corners based on local intensity changes." },
+      { id: "cv-orb", name: "ORB Feature Detector", brief: "Fast, scale-invariant binary feature keypoint descriptor." },
+      { id: "cv-matcher", name: "Feature Matching between Images (BFMatcher)", brief: "Associating keypoint descriptions using Hamming distance." }
+    ]
+  },
+  {
+    id: "histogram-analysis",
+    name: "Histogram Analysis",
+    brief: "Analyze global color distribution and improve contrast.",
+    category: "Classical CV",
+    difficulty: "Easy-Medium",
+    prerequisites: ["Image Basics"],
+    subtopics: [
+      { id: "cv-hist-compute", name: "Histogram Computation & Visualization", brief: "Counting pixel frequency per intensity value." },
+      { id: "cv-clahe", name: "Histogram Equalization (CLAHE)", brief: "Contrast adjustment and adaptive equalization." },
+      { id: "cv-backprojection", name: "Histogram Backprojection", brief: "Finding regions matching a model color template." }
+    ]
+  },
+  {
+    id: "geometric-homography",
+    name: "Geometric Transformations & Homography",
+    brief: "Project image viewpoints onto planes using linear maps.",
+    category: "Classical CV",
+    difficulty: "Medium",
+    prerequisites: ["Linear Algebra"],
+    subtopics: [
+      { id: "cv-affine", name: "Affine Transformations", brief: "Scale, translation, rotation using 2x3 matrices." },
+      { id: "cv-perspective", name: "Perspective Transform (Bird's Eye View)", brief: "Warping perspective using 3x3 matrices." },
+      { id: "cv-ransac", name: "Homography Estimation with RANSAC", brief: "Calculating projection matrices under outlier noise." }
+    ]
+  },
+  {
+    id: "template-matching",
+    name: "Template Matching & Object Localization",
+    brief: "Search for matches to a smaller reference image within a scene.",
+    category: "Classical CV",
+    difficulty: "Medium",
+    prerequisites: ["Filtering & Convolution"],
+    subtopics: [
+      { id: "cv-tm-methods", name: "Template Matching Methods", brief: "Comparing normalized cross-correlation and squared diffs." },
+      { id: "cv-tm-multiscale", name: "Multi-scale Template Matching", brief: "Matching template over a range of resolution scales." },
+      { id: "cv-tm-limits", name: "Limitations & When to Use", brief: "Sensitivity to scale, rotation, and illumination." }
+    ]
+  },
+  {
+    id: "optical-flow",
+    name: "Optical Flow & Motion Estimation",
+    brief: "Track pixel displacements across video frames.",
+    category: "Classical CV",
+    difficulty: "Medium-Hard",
+    prerequisites: ["Filtering & Convolution", "Calculus"],
+    subtopics: [
+      { id: "cv-lucas-kanade", name: "Lucas-Kanade Optical Flow", brief: "Sparse feature tracking over consecutive frames." },
+      { id: "cv-farneback", name: "Dense Optical Flow (Farneback)", brief: "Calculating displacement vectors for all pixels." },
+      { id: "cv-motion-tracking", name: "Motion Detection & Tracking Applications", brief: "Background subtraction and trajectory tracking." }
+    ]
+  },
+  {
+    id: "image-segmentation-classical",
+    name: "Image Segmentation (Classical)",
+    brief: "Divide an image into semantic regions using classical algorithms.",
+    category: "Classical CV",
+    difficulty: "Medium",
+    prerequisites: ["Contour Detection"],
+    subtopics: [
+      { id: "cv-watershed", name: "Watershed Algorithm", brief: "Marker-based image segmentation using topographies." },
+      { id: "cv-grabcut", name: "GrabCut", brief: "Interactive foreground extraction using graph cuts." },
+      { id: "cv-meanshift", name: "Mean Shift Segmentation", brief: "Clustering pixel colors to partition regions." }
+    ]
+  },
+  {
+    id: "camera-calibration-stereo",
+    name: "Camera Calibration & Stereo Vision",
+    brief: "Extract depth maps and spatial coordinates using multi-camera layouts.",
+    category: "Geometry & Stereo",
+    difficulty: "Hard",
+    prerequisites: ["Linear Algebra", "Geometric Transformations & Homography"],
+    subtopics: [
+      { id: "cv-params", name: "Intrinsic & Extrinsic Parameters", brief: "Camera focal length, principal point, pose matrices." },
+      { id: "cv-chessboard", name: "Chessboard Calibration", brief: "Estimating distortion coefficients via targets." },
+      { id: "cv-depth-maps", name: "Stereo Matching & Depth Maps", brief: "Triangulating disparity values between stereo cameras." }
+    ]
+  },
+  {
+    id: "intro-cnn",
+    name: "Introduction to CNNs",
+    brief: "Understand the layers, math, and operations of convolutional nets.",
+    category: "Deep Learning",
+    difficulty: "Medium",
+    prerequisites: ["Python & PyTorch", "Linear Algebra", "Calculus"],
+    subtopics: [
+      { id: "cv-layers", name: "Convolution, Pooling, Stride, Padding", brief: "Core components of convolutional neural layers." },
+      { id: "cv-cnn-scratch", name: "Building a CNN from Scratch (PyTorch)", brief: "Assembling layers into a network model in PyTorch." },
+      { id: "cv-cifar", name: "Training on CIFAR-10", brief: "Running a complete image classification training cycle." }
+    ]
+  },
+  {
+    id: "transfer-learning",
+    name: "Transfer Learning & Fine-Tuning",
+    brief: "Adapt large pretrained networks to target datasets.",
+    category: "Deep Learning",
+    difficulty: "Medium",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-pretrained", name: "Using Pretrained Models (ResNet, EfficientNet)", brief: "Loading model weights pre-trained on ImageNet." },
+      { id: "cv-fe-vs-ft", name: "Feature Extraction vs Fine-Tuning", brief: "Freezing backbone weights vs full tuning." },
+      { id: "cv-custom-pipeline", name: "Custom Dataset Training Pipeline", brief: "Custom PyTorch Dataset and DataLoader design." }
+    ]
+  },
+  {
+    id: "classification-architectures",
+    name: "Image Classification Architectures",
+    brief: "Trace SOTA backbone structures and design evolutions.",
+    category: "Deep Learning",
+    difficulty: "Medium-Hard",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-archs-evolution", name: "LeNet -> AlexNet -> VGG (evolution)", brief: "Timeline of early CNN architectures." },
+      { id: "cv-resnet", name: "ResNet & Skip Connections", brief: "Gradient flow optimization via residual blocks." },
+      { id: "cv-efficientnet", name: "EfficientNet & Compound Scaling", brief: "Compound scaling of width, depth and resolution." }
+    ]
+  },
+  {
+    id: "yolo-object-detection",
+    name: "Object Detection with YOLO",
+    brief: "Train and deploy single-stage real-time object detectors.",
+    category: "Deep Learning",
+    difficulty: "Medium-Hard",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-yolo-how", name: "YOLO Architecture & How It Works", brief: "Grid-based object detection strategy." },
+      { id: "cv-yolo-train", name: "YOLOv8 Training on Custom Dataset", brief: "Preparing bounding box labels and running ultralytics." },
+      { id: "cv-yolo-deploy", name: "Real-Time Detection Deployment", brief: "Exporting YOLO models to running scripts." }
+    ]
+  },
+  {
+    id: "two-stage-object-detection",
+    name: "Object Detection (Two-Stage)",
+    brief: "Understand region-proposal and anchor-based detector networks.",
+    category: "Deep Learning",
+    difficulty: "Hard",
+    prerequisites: ["Introduction to CNNs", "Object Detection with YOLO"],
+    subtopics: [
+      { id: "cv-rcnn-evolution", name: "R-CNN -> Fast R-CNN -> Faster R-CNN", brief: "History of region proposal architectures." },
+      { id: "cv-rpn", name: "Region Proposal Networks", brief: "Directing CNN model attention to candidates." },
+      { id: "cv-det-metrics", name: "Anchor Boxes, IoU, NMS, mAP Metrics", brief: "Object detection evaluation criteria." }
+    ]
+  },
+  {
+    id: "semantic-segmentation",
+    name: "Semantic Segmentation",
+    brief: "Classify every pixel in an image to a semantic class.",
+    category: "Deep Learning",
+    difficulty: "Hard",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-fcn", name: "Fully Convolutional Networks (FCN)", brief: "Replacing linear classifier layers with conv layers." },
+      { id: "cv-unet", name: "U-Net Architecture & Medical Imaging", brief: "Symmetrical contracting and expanding paths." },
+      { id: "cv-deeplab", name: "DeepLabV3+ & Atrous Convolution", brief: "Capturing context using dilated kernels." }
+    ]
+  },
+  {
+    id: "instance-segmentation",
+    name: "Instance Segmentation",
+    brief: "Identify, segment, and separate individual objects in scenes.",
+    category: "Deep Learning",
+    difficulty: "Hard",
+    prerequisites: ["Object Detection (Two-Stage)", "Semantic Segmentation"],
+    subtopics: [
+      { id: "cv-mask-rcnn", name: "Mask R-CNN Architecture", brief: "Adding a mask projection head to Faster R-CNN." },
+      { id: "cv-panoptic", name: "Panoptic Segmentation", brief: "Fusing background stuff and foreground things." },
+      { id: "cv-sam", name: "Segment Anything Model (SAM)", brief: "Promptable visual foundation segmentation models." }
+    ]
+  },
+  {
+    id: "gans",
+    name: "GANs (Generative Adversarial Networks)",
+    brief: "Train adversarial generator and discriminator models.",
+    category: "Generative AI",
+    difficulty: "Hard",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-gan-loop", name: "GAN Fundamentals & Training Loop", brief: "Minimax optimization of generator vs discriminator." },
+      { id: "cv-dcgan", name: "DCGAN Implementation", brief: "Using transpose convolutions to synthesize images." },
+      { id: "cv-cyclegan", name: "CycleGAN (Unpaired Image Translation)", brief: "Mapping styles across unaligned image sets." }
+    ]
+  },
+  {
+    id: "diffusion-models",
+    name: "Diffusion Models",
+    brief: "Generate high-fidelity images using denoising probability paths.",
+    category: "Generative AI",
+    difficulty: "Hard",
+    prerequisites: ["Semantic Segmentation", "Probability & Calculus"],
+    subtopics: [
+      { id: "cv-ddpm", name: "DDPM (Denoising Diffusion Probabilistic Models)", brief: "Forward noise addition and backward denoising loops." },
+      { id: "cv-stable-diff", name: "Stable Diffusion Architecture", brief: "Latent diffusion inside encoded vector spaces." },
+      { id: "cv-controlnet", name: "Controlnet & Guided Generation", brief: "Injecting spatial conditions into U-Net paths." }
+    ]
+  },
+  {
+    id: "vit",
+    name: "Vision Transformers (ViT)",
+    brief: "Apply self-attention mechanisms directly to image patch sequences.",
+    category: "Transformers & Attention",
+    difficulty: "Hard",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-vit-attn", name: "Self-Attention for Images", brief: "Computing query-key similarity matrices over patches." },
+      { id: "cv-vit-patches", name: "ViT Architecture & Patch Embeddings", brief: "Flattening 16x16 pixels into token vectors." },
+      { id: "cv-swin", name: "Swin Transformer & Hierarchical Features", brief: "Shifted window attention to reduce complexity." }
+    ]
+  },
+  {
+    id: "clip-multimodal",
+    name: "CLIP & Multimodal Vision",
+    brief: "Align text and image embeddings in shared contrastive spaces.",
+    category: "Transformers & Attention",
+    difficulty: "Hard",
+    prerequisites: ["Vision Transformers (ViT)"],
+    subtopics: [
+      { id: "cv-clip-contrastive", name: "Contrastive Learning for Vision-Language", brief: "Aligning matched image-text pairs in a batch." },
+      { id: "cv-clip-zeroshot", name: "Zero-Shot Classification with CLIP", brief: "Predicting image labels via dynamic text prompts." },
+      { id: "cv-clip-search", name: "Building a CLIP-based Image Search", brief: "Searching visual databases using natural language." }
+    ]
+  },
+  {
+    id: "video-understanding",
+    name: "Video Understanding",
+    brief: "Analyze temporal transitions and track objects across frames.",
+    category: "Deep Learning",
+    difficulty: "Medium-Hard",
+    prerequisites: ["Introduction to CNNs", "Optical Flow & Motion Estimation"],
+    subtopics: [
+      { id: "cv-video-io", name: "Frame Extraction & Video Processing", brief: "Handling video stream ingestion and encoding." },
+      { id: "cv-tracking", name: "Object Tracking (DeepSORT, ByteTrack)", brief: "Kalman filters and embedding associations." },
+      { id: "cv-action-rec", name: "Action Recognition (SlowFast, I3D)", brief: "Extracting features across spatial and temporal dimensions." }
+    ]
+  },
+  {
+    id: "face-detection-recognition",
+    name: "Face Detection & Recognition",
+    brief: "Detect human faces and associate them with identities.",
+    category: "Deep Learning",
+    difficulty: "Medium",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-classical-face", name: "Haar Cascades & HOG Detectors", brief: "Early face boundary detection heuristics." },
+      { id: "cv-mtcnn", name: "MTCNN & RetinaFace", brief: "Cascade deep networks for boundary localization." },
+      { id: "cv-facenet", name: "FaceNet Embeddings & Face Matching", brief: "Learning facial feature vectors using triplet loss." }
+    ]
+  },
+  {
+    id: "ocr-document-analysis",
+    name: "OCR & Document Analysis",
+    brief: "Segment layout boundaries and read character symbols in documents.",
+    category: "Deep Learning",
+    difficulty: "Medium",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-tesseract", name: "Tesseract OCR Pipeline", brief: "Text detection and character recognition pipeline." },
+      { id: "cv-scene-text", name: "Scene Text Detection (EAST, CRAFT)", brief: "Finding dynamic text rotated in natural scenes." },
+      { id: "cv-layout-analysis", name: "Document Layout Analysis", brief: "Parsing sections, tables, and paragraphs." }
+    ]
+  },
+  {
+    id: "pose-estimation",
+    name: "Pose Estimation",
+    brief: "Track human joint coordinates and body postures.",
+    category: "Deep Learning",
+    difficulty: "Medium-Hard",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-mediapipe", name: "OpenPose & MediaPipe", brief: "Real-time keypoint extraction pipelines." },
+      { id: "cv-hrnet", name: "HRNet Architecture", brief: "Preserving high-resolution features across network pipelines." },
+      { id: "cv-pose-apps", name: "Applications: Fitness, AR, Sign Language", brief: "Interpreting joint coordinates for motion logic." }
+    ]
+  },
+  {
+    id: "3d-vision-depth",
+    name: "3D Vision & Depth Estimation",
+    brief: "Generate point clouds and estimate scene depth from 2D views.",
+    category: "Geometry & Stereo",
+    difficulty: "Hard",
+    prerequisites: ["Camera Calibration & Stereo Vision"],
+    subtopics: [
+      { id: "cv-mono-depth", name: "Monocular Depth Estimation (MiDaS)", brief: "Predicting relative depth from a single camera frame." },
+      { id: "cv-point-clouds", name: "Point Clouds & PointNet", brief: "Processing unordered collections of 3D spatial points." },
+      { id: "cv-nerf", name: "NeRF (Neural Radiance Fields)", brief: "Synthesizing views using neural implicit representations." }
+    ]
+  },
+  {
+    id: "model-deployment-vision",
+    name: "Model Deployment for Vision",
+    brief: "Optimize and compile neural backbones for target runtimes.",
+    category: "MLOps",
+    difficulty: "Medium",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-onnx", name: "ONNX Export & Optimization", brief: "Translating PyTorch models to dynamic computation graphs." },
+      { id: "cv-tensorrt", name: "TensorRT & OpenVINO", brief: "Compiling models for Nvidia or Intel silicon layers." },
+      { id: "cv-edge-deploy", name: "Edge Deployment (Jetson Nano, Mobile)", brief: "Deploying models inside resource-constrained environments." }
+    ]
+  },
+  {
+    id: "data-augmentation-tricks",
+    name: "Data Augmentation & Training Tricks",
+    brief: "Increase dataset variety and optimize model robustness.",
+    category: "Deep Learning",
+    difficulty: "Easy-Medium",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-albumentations", name: "Albumentations Library", brief: "Creating fast, pixel-level bounding box augmentations." },
+      { id: "cv-aug-mix", name: "Mixup, Cutout, CutMix", brief: "Creating synthetic linear combination images." },
+      { id: "cv-class-imbalance", name: "Handling Class Imbalance", brief: "Focal Loss and weighted sample strategies." }
+    ]
+  },
+  {
+    id: "adversarial-robustness",
+    name: "Adversarial Attacks & Robustness",
+    brief: "Deconstruct models using adversarial perturbations and defend them.",
+    category: "Deep Learning",
+    difficulty: "Hard",
+    prerequisites: ["Introduction to CNNs", "Calculus (gradients)"],
+    subtopics: [
+      { id: "cv-attacks", name: "FGSM & PGD Attacks", brief: "Synthesizing input perturbations along loss gradients." },
+      { id: "cv-adv-training", name: "Adversarial Training", brief: "Injecting perturbed inputs into training loops." },
+      { id: "cv-robustness-eval", name: "Model Robustness Evaluation", brief: "Testing robustness against corruption and noise." }
+    ]
+  },
+  {
+    id: "self-supervised-vision",
+    name: "Self-Supervised Learning for Vision",
+    brief: "Learn visual features without human annotation labels.",
+    category: "Deep Learning",
+    difficulty: "Hard",
+    prerequisites: ["Introduction to CNNs", "Data Augmentation & Training Tricks"],
+    subtopics: [
+      { id: "cv-ssl-contrastive", name: "Contrastive Learning (SimCLR, MoCo)", brief: "Aligning positive views and pushing negative views." },
+      { id: "cv-mae", name: "Masked Autoencoders (MAE)", brief: "Reconstructing hidden patches of images." },
+      { id: "cv-dino-ssl", name: "DINO & Self-Distillation", brief: "Training ViT architectures without labels." }
+    ]
+  },
+  {
+    id: "explainability-interpretability",
+    name: "Explainability & Interpretability",
+    brief: "Understand model decisions using attribution maps.",
+    category: "Deep Learning",
+    difficulty: "Medium-Hard",
+    prerequisites: ["Introduction to CNNs"],
+    subtopics: [
+      { id: "cv-gradcam", name: "Grad-CAM & Saliency Maps", brief: "Using final conv layer gradients to map focus areas." },
+      { id: "cv-shap", name: "SHAP for Image Models", brief: "Calculating game-theoretic pixel contributions." },
+      { id: "cv-feature-vis", name: "What Does the Network Actually See?", brief: "Synthesizing inputs that maximize activations." }
+    ]
+  },
+  {
+    id: "end-to-end-projects",
+    name: "End-to-End Projects",
+    brief: "Build functional production computer vision projects.",
+    category: "Projects",
+    difficulty: "Mixed",
+    prerequisites: ["Deep Learning & Classical CV basics"],
+    subtopics: [
+      { id: "cv-proj-alpr", name: "Build a Real-Time License Plate Reader [Medium]", brief: "YOLO detection + OCR recognition pipeline." },
+      { id: "cv-proj-search", name: "Build a Visual Search Engine [Hard]", brief: "Feature database retrieval using vector embeddings." },
+      { id: "cv-proj-defect", name: "Build a Defect Detection System (Manufacturing) [Hard]", brief: "Anomaly segmentation under strict timing limits." },
+      { id: "cv-proj-filter", name: "Build an AR Filter (Face Mesh + Overlay) [Medium]", brief: "MediaPipe keypoint tracking + image mapping." },
+      { id: "cv-proj-scanner", name: "Build a Document Scanner App [Easy-Medium]", brief: "Contour perspective transformation + binarization." }
+    ]
+  }
 ];
 
-// ─── Realistic Content Templates ─────────────────────────────────────────────
-function getContent(sectionId: string, problem: DSAProblem): string {
-  const name = problem.name;
-  const lc = problem.lcNumber ? `LC #${problem.lcNumber}` : '';
-  const pattern = problem.pattern;
+function getContent(sectionId: string, topic: DSATopic): string {
+  const name = topic.name;
+  const prereqs = topic.prerequisites.join(', ');
 
   const templates: Record<string, string> = {
-    'problem-name': `# ${name} ${lc}\n\n**Category:** ${problem.tags.join(', ')}\n**Difficulty:** ${problem.difficulty}\n**Core Pattern:** ${pattern}\n\n${problem.brief}`,
+    prerequisites: `**Prerequisites for ${name}:**\n\n${topic.prerequisites.map((p, i) => `${i + 1}. **${p}** — Foundational understanding required before exploring this topic.`).join('\n')}\n\n**Why these matter:**\nWithout solid grounding in ${prereqs || 'basic mathematics'}, the mathematical derivations and intuition behind ${name} will be difficult to follow. Ensure you review these foundations before starting.`,
 
-    'pattern': `**Core DSA Pattern: ${pattern}**\n\nThis problem is a canonical example of the **${pattern}** technique.\n\n**When to recognize this pattern:**\n- The problem asks for pairs/groups with a specific relationship\n- You need O(n) time but naive approach is O(n²)\n- You want to trade space for time\n\n**Why this pattern works here:**\nInstead of checking every pair (O(n²)), we store what we've seen and look up the complement in O(1). This converts a search problem into a lookup problem.\n\n**Pattern Fingerprint — look for these signals:**\n1. "Two elements that satisfy condition X"\n2. "Find if X exists in the array"\n3. "Count occurrences of something"\n4. Fixed-size window with a maintained property`,
+    theory: `**Core Theory: ${name}**\n\n**Mathematical Foundation:**\nThe key operations in ${name} involve representing visual signals as multi-dimensional matrices and computing spatial or semantic features.\n\n- Grayscale representation: f(x, y) ∈ [0, 255]\n- Color representation: f(x, y) ∈ [0, 255]³ (e.g. RGB, HSV, LAB channels)\n- Convolutions compute local linear combinations: g(x, y) = ∑_dx ∑_dy f(x + dx, y + dy) · K(dx, dy)\n\n**Key principles and concepts:**\n- Locality — pixels close to each other are highly correlated.\n- Stationary statistics — visual features (like edges, textures) are invariant to translation.\n- Scale-space representation — structures exist across multiple resolutions.`,
 
-    'intuition': `**Problem Intuition — Interview-Friendly Explanation**\n\n**The hidden insight:**\nThe naive approach is to check every pair — O(n²). The insight is: for each element, we only need to know if its "complement" has appeared before.\n\n**Why we reject the brute force:**\nFor n=10⁵, O(n²) = 10¹⁰ operations — this would take minutes. The interviewer won't accept it.\n\n**The mental model:**\nImagine walking through a party and putting name tags on people. When you meet someone, you don't scan the whole room — you check your list. Same idea: build a lookup table as you go.\n\n**The "aha" moment:**\nFor ${name}, as you process each element, ask: "Have I already seen what I need?" Instead of looking forward, look backward using your hash map.\n\n**How to explain this to an interviewer:**\n"I noticed that for each element, the search for its partner can be done in O(1) if we pre-store elements. So I trade O(n) space for O(n) time improvement from O(n²)."`,
+    visual: `**Visual Explanation & Architecture Flow**\n\nData flow and structure through ${name}:\n\nInput Tensor [H × W × C]\n    ↓  Pre-processing & Normalization\nNormalized Tensor\n    ↓  Feature Extraction / Classical Operations\nIntermediate Map\n    ↓  Analysis / Matching / Inference Pipeline\nOutput Predictions / Processed Image\n\n**Key architectural elements:**\n- Receptive Field size: determines the global context captured by each visual node.\n- Feature Maps: channels corresponding to specific filters or color distributions.\n- Linear layers or post-processing (NMS, thresholding) to compute final predictions.`,
 
-    'brute-force': `**Brute Force Approach**\n\n**Idea:** Check every possible pair/combination.\n\n\`\`\`python\ndef brute_force_solution(nums, target):\n    # Check every pair — O(n²) time, O(1) space\n    n = len(nums)\n    for i in range(n):\n        for j in range(i + 1, n):\n            if nums[i] + nums[j] == target:\n                return [i, j]\n    return []  # No solution found\n\n# Time:  O(n²) — nested loops over all pairs\n# Space: O(1) — no extra data structures\n\`\`\`\n\n**Why it fails:**\n- n = 10⁵ → 10¹⁰ operations → TLE guaranteed\n- Interviewer expects you to identify this and move on quickly\n- Say: "This works but is O(n²). Let me optimize."`,
+    implementation: `**Practical Implementation**\n\n\`\`\`python\nimport numpy as np\nimport cv2\n\n# ── Basic Image Reading & Processing ──────────────────────────────────\ndef process_visual_feed(image_path):\n    # Load in BGR color space\n    img = cv2.imread(image_path)\n    if img is None:\n        raise FileNotFoundError(f"Could not load image at {image_path}")\n        \n    # Convert color space for analysis\n    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)\n    img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)\n    \n    # Normalize values for training / calculations\n    normalized = img_gray.astype(np.float32) / 255.0\n    return normalized\n\nprint("Data Structures and Algorithms pipeline initialized successfully.")\n\`\`\``,
 
-    'optimal': `**Optimal Approach — Interview-Ready Solution**\n\n**Algorithm:**\n1. Initialize a hash map {value: index}\n2. For each element, compute complement = target - element\n3. If complement is in map → found! Return indices\n4. Otherwise, store current element in map\n\n\`\`\`python\ndef ${name.toLowerCase().replace(/\s+/g, '_')}(nums: list[int], target: int) -> list[int]:\n    """\n    Hash map for O(1) complement lookup.\n    Time: O(n) | Space: O(n)\n    """\n    seen = {}  # {value: index}\n    \n    for i, num in enumerate(nums):\n        complement = target - num\n        \n        if complement in seen:\n            return [seen[complement], i]  # Return earlier index first\n        \n        seen[num] = i  # Store current for future lookups\n    \n    return []  # Guaranteed solution exists per problem statement\n\n\n# Dry Run with [2, 7, 11, 15], target=9:\n# i=0: num=2, complement=7, seen={} → not found, seen={2:0}\n# i=1: num=7, complement=2, seen={2:0} → FOUND! return [0, 1]\n\`\`\`\n\n**Why this is optimal:**\n- Time: O(n) — single pass through array\n- Space: O(n) — hash map stores at most n elements\n- This cannot be done in O(1) space (need to store history)\n- This cannot be done in O(1) time (must read all elements at least once)`,
+    hyperparameters: `**Hyperparameters & Design Choices**\n\n**Resolution Scales:**\n- Standard input size: 224x224 (good speed-accuracy tradeoff)\n- High-resolution: 512x512 or 1024x1024 (required for detailed OCR or small defects)\n\n**Kernel Sizes:**\n- 3x3 or 5x5: local feature extraction\n- 7x7 or 11x11: large receptive field (useful for early stage classical filters or input layers)\n\n**Threshold values:**\n- Binarization: global static threshold (e.g. 127) vs Otsu's automatic bimodal calculation\n- Block size for adaptive thresholds: must be an odd number (e.g. 3, 5, 11) relative to detail scale`,
 
-    'python-concepts': `**Key Python Concepts Used**\n\n**1. Dictionary (Hash Map) — dict{}**\n\`\`\`python\nseen = {}          # Create empty dict\nseen[key] = val   # O(1) amortized write\nval = seen[key]   # O(1) average read\nkey in seen       # O(1) membership check ← crucial here\n\`\`\`\nWhy it matters: Python dicts use hash tables internally. Average O(1) operations make our algorithm O(n) overall.\n\n**2. enumerate() — get index + value together**\n\`\`\`python\nfor i, num in enumerate(nums):  # Pythonic, avoids nums[i]\n    pass\n\`\`\`\n\n**3. Tuple unpacking for clean returns**\n\`\`\`python\nreturn [seen[complement], i]  # List of two indices\n\`\`\`\n\n**4. defaultdict (alternative approach)**\n\`\`\`python\nfrom collections import defaultdict\nd = defaultdict(list)  # Never raises KeyError\nd[key].append(value)   # Useful for grouping\n\`\`\``,
+    pitfalls: `**Common Pitfalls & Debugging**\n\n**Color Space Confusion (BGR vs RGB):**\n- OpenCV reads images in BGR format by default. Displaying them in Matplotlib or passing them to PyTorch backbones directly will swap Red and Blue channels.\n- Fix: \`img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)\`\n\n**Normalisation issues:**\n- Feeding float images [0.0, 1.0] to functions expecting integer values [0, 255] can lead to saturated white outputs or mathematical overflows.\n\n**Coordinates handling:**\n- Remember that pixel arrays are represented as (Height, Width, Channels), while bounding box/point coordinates are typically passed as (X, Y) which corresponds to (Col, Row).`,
 
-    'interview-insights': `**Key Interview Insights**\n\n**Common mistakes candidates make:**\n1. Returning [j, i] instead of [i, j] — always return earlier index first\n2. Storing the index AFTER checking — this causes self-pairing bugs when target = 2*num\n3. Forgetting that indices must be different (but values can repeat)\n4. Overthinking the edge cases — the problem guarantees exactly one solution\n\n**Follow-up questions interviewers ask:**\n- "What if there are multiple valid answers?" → Return all pairs using a set\n- "What if the array is sorted?" → Use two pointers, O(1) space (LC #167)\n- "What if you can't use extra space?" → Sort + two pointers, O(n log n) time\n- "3Sum version?" → Fix one element, use two pointers for the rest (LC #15)\n- "Count pairs, don't return them?" → Adjust to count instead of return\n\n**What Microsoft/Apple/Google interviewers want to see:**\n1. You quickly identify brute force and explain WHY it's slow\n2. You derive the optimization (don't just memorize it)\n3. You handle the dry run cleanly on a small example\n4. You discuss edge cases proactively (empty array, single element, duplicates)\n5. Clean, readable code — use meaningful variable names`,
+    applications: `**Real-World Applications of ${name}**\n\n- **Medical Diagnosis Systems:** Automated detection of anomalies in X-Ray and MRI images using custom segmentation lines.\n- **Quality Control in Smart Factories:** Rapid detection of surface scratches or structural components using high-speed camera sensors.\n- **Self-Driving Vehicles:** Real-time localization of lanes, pedestrians, and traffic signs under varying weather/light conditions.`,
 
-    'pattern-notes': `**Pattern Recognition Notes**\n\n**How to identify the Hash Map Complement pattern:**\n✅ Problem involves finding pairs/groups with a specific relationship\n✅ Brute force is O(n²) nested loops\n✅ You need to "remember" what you've seen\n✅ Order of elements matters (or their frequencies)\n\n**Template for this pattern:**\n\`\`\`python\nseen = {}\nfor i, x in enumerate(arr):\n    complement = needed_value(x, target)\n    if complement in seen:\n        # FOUND: use seen[complement] and i\n        pass\n    seen[x] = i  # Store AFTER checking to avoid self-pairing\n\`\`\`\n\n**Similar problems to practice (escalating difficulty):**\n- LC #1 Two Sum (this problem)\n- LC #167 Two Sum II (sorted array, two pointers)\n- LC #15 3Sum (fix + two pointers)\n- LC #18 4Sum (nested fix + two pointers)\n- LC #560 Subarray Sum Equals K (prefix sum + hash map)\n- LC #1010 Pairs of Songs (modular arithmetic + hash map)`,
+    interview: `**Important Interview Questions — ${name}**\n\n**Conceptual:**\n1. What is the difference between HSV and RGB color spaces, and when would you use HSV?\n2. Explain how Otsu's thresholding dynamically determines the optimal split.\n3. What is the aperture size in edge detection and how does it affect noise sensitivity?\n\n**Coding:**\n4. Write a function in NumPy to rotate an image by 90 degrees clockwise without using cv2.\n5. Implement a simple 2D convolution kernel function over a 2D grayscale image.`,
 
-    'real-interview-tips': `**Real Interview Tips**\n\n**Opening (first 2 minutes):**\n"Let me make sure I understand the problem. We have an array of integers and a target. We need to return the indices of the two numbers that add up to the target. I'll assume there's exactly one solution and I can't use the same element twice. Is that correct?"\n\n**During coding:**\nNarrate your thinking: "I'll use a hash map to store each number and its index as I iterate. For each new number, I check if its complement is already in the map."\n\n**Complexity discussion:**\n"The time complexity is O(n) because we iterate through the array once, and each hash map operation is O(1) amortized. Space is O(n) in the worst case where no pair exists until the last element."\n\n**Proactive edge cases:**\n"Edge cases I'd consider: empty array returns [], single element returns [], duplicate values work because we store the most recent index, but let me verify..."\n\n**What separates L4 from L5 at FAANG:**\nL4 gets the solution. L5 discusses: "In a distributed system, if this array was sharded across machines, how would I coordinate the lookup? We'd need a shared hash map or a two-phase approach."`,
+    comparison: `**Comparison with Alternatives**\n\n| Method | Computational Cost | Input Dependency | Edge Robustness |\n|---|---|---|---|\n| Classical Filter | Very Low | None | Sensitive to noise |\n| Shallow CNN | Medium | Requires training labels | Robust to variations |\n| Large Foundation (SAM/ViT) | High | Zero-shot generalization | Extremely robust |`,
 
-    'references': `**References & Resources**\n\n📹 **Video Explanations:**\n- NeetCode YouTube: "${name}" — excellent whiteboard walkthrough\n- Abdul Bari Algorithm Course (for foundational understanding)\n\n📄 **Problem Links:**\n- LeetCode #${problem.lcNumber}: Official problem + editorial\n- NeetCode.io roadmap — categorized by pattern\n- Striver's DSA Sheet — A-Z DSA problems with difficulty progression\n\n📚 **Books:**\n- *Introduction to Algorithms* (CLRS) — Chapter 11: Hash Tables\n- *Cracking the Coding Interview* — Arrays & Strings chapter\n- *Elements of Programming Interviews* — Hash tables chapter\n\n🌐 **Online Resources:**\n- CP-Algorithms.com — Mathematical foundations\n- MIT 6.006 OpenCourseWare — Hash tables lecture\n- Competitive Programmer's Handbook (free PDF) — Data structures`,
+    paper: `**Research Context: ${name}**\n\nHistorically, computer vision evolved from manual feature engineering (edge kernels, SIFT descriptors, morphological filters) to automated hierarchical representation learning using deep neural networks.\n\n**Core papers of interest:**\n- Canny (1986) — A Computational Approach to Edge Detection\n- Viola-Jones (2001) — Robust Real-time Face Detection\n- Dosovitskiy et al. (2020) — An Image is Worth 16x16 Words (ViT)`,
+
+    references: `**References & Resources**\n\n- OpenCV Documentation (docs.opencv.org)\n- Stanford CS231n: Deep Learning for Data Structures and Algorithms\n- Richard Szeliski's textbook: "Data Structures and Algorithms: Algorithms and Applications"\n- Albumentations Library documentation (albumentations.ai)`
   };
 
-  return templates[sectionId] ?? `**${name} — ${sectionId}**\n\nDetailed content for this section of the ${name} problem analysis. This covers the ${sectionId} aspect with full technical depth appropriate for senior engineering interviews.`;
+  return templates[sectionId] ?? `**${name} — ${sectionId}**\n\nProfessional-grade content for this section covering ${name} in depth. This material is formatted for interview preparation and production engineering contexts.`;
 }
 
-// ─── Quiz Data ────────────────────────────────────────────────────────────────
-const QUIZ_BANK: Record<string, { q: string; options: string[]; answer: number; explanation: string }[]> = {
-  'two-sum': [
-    { q: 'What is the time complexity of the optimal Two Sum solution?', options: ['O(n²)', 'O(n log n)', 'O(n)', 'O(log n)'], answer: 2, explanation: 'We iterate once through the array with O(1) hash map lookups, giving overall O(n).' },
-    { q: 'What data structure enables the O(n) solution?', options: ['Stack', 'Hash Map (dict)', 'Binary Search Tree', 'Priority Queue'], answer: 1, explanation: 'A hash map provides O(1) average-case lookup for the complement of each element.' },
-    { q: 'What is stored as the VALUE in the hash map?', options: ['The element value', 'The element\'s index', 'The complement value', 'Boolean True'], answer: 1, explanation: 'We store {value: index} so we can return the index when the complement is found.' },
-    { q: 'Why do we check BEFORE storing the current element?', options: ['Order matters for output', 'To avoid using the same element twice', 'Python requires this order', 'To handle negative numbers'], answer: 1, explanation: 'Checking before storing prevents using an element as its own pair (self-pairing bug when target = 2*num).' },
-  ],
-  'default': [
-    { q: 'What is the primary advantage of hash maps in algorithm design?', options: ['O(1) space complexity', 'O(1) average time lookup', 'Sorted order maintenance', 'Guaranteed collision-free storage'], answer: 1, explanation: 'Hash maps provide O(1) average-case time for insertion, deletion, and lookup operations.' },
-    { q: 'When should you prefer BFS over DFS for graph problems?', options: ['When finding any path', 'When finding the shortest path', 'When the graph is deep', 'When using recursion'], answer: 1, explanation: 'BFS explores level by level, guaranteeing shortest path in unweighted graphs. DFS finds any path, not necessarily shortest.' },
-    { q: 'What is the time complexity of building a heap from n elements?', options: ['O(n log n)', 'O(n)', 'O(log n)', 'O(n²)'], answer: 1, explanation: 'Heapify (build_heap) runs in O(n) due to the amortized analysis, not O(n log n) as naive insertion would suggest.' },
-    { q: 'In dynamic programming, what two conditions must a problem satisfy?', options: ['Greedy choice + optimal substructure', 'Overlapping subproblems + optimal substructure', 'Divide & conquer + memoization', 'Recursion + base case'], answer: 1, explanation: 'DP applies when: (1) optimal solution can be built from optimal sub-solutions, and (2) same subproblems appear multiple times.' },
-  ],
-};
-
-// ─── Section Definitions ──────────────────────────────────────────────────────
 const SECTION_DEFS = [
-  { id: 'problem-name', label: 'Problem Statement', icon: 'DocumentTextIcon', subtitle: 'Name, LC#, topic, pattern' },
-  { id: 'pattern', label: 'Core DSA Pattern', icon: 'PuzzlePieceIcon', subtitle: 'Pattern used + recognition signals' },
-  { id: 'intuition', label: 'Problem Intuition', icon: 'LightBulbIcon', subtitle: 'Interview-friendly reasoning process' },
-  { id: 'brute-force', label: 'Brute Force Approach', icon: 'BoltSlashIcon', subtitle: 'Code + why it\'s rejected' },
-  { id: 'optimal', label: 'Optimal Approach', icon: 'BoltIcon', subtitle: 'Clean code + dry run + complexity' },
-  { id: 'python-concepts', label: 'Python Concepts Used', icon: 'CodeBracketIcon', subtitle: 'defaultdict, heapq, enumerate, etc.' },
-  { id: 'interview-insights', label: 'Key Interview Insights', icon: 'ChatBubbleLeftRightIcon', subtitle: 'Common mistakes + follow-ups' },
-  { id: 'pattern-notes', label: 'Pattern Recognition Notes', icon: 'MagnifyingGlassIcon', subtitle: 'How to spot this in future problems' },
-  { id: 'real-interview-tips', label: 'Real Interview Tips', icon: 'AcademicCapIcon', subtitle: 'What to say, how FAANG evaluates' },
-  { id: 'quiz', label: 'Quiz', icon: 'TrophyIcon', subtitle: '4 questions with explanations' },
-  { id: 'references', label: 'References & Resources', icon: 'BookOpenIcon', subtitle: 'NeetCode, Striver, CLRS, MIT OCW' },
+  { id: 'prerequisites', label: 'Prerequisites', icon: 'AcademicCapIcon', subtitle: 'What to know before diving in' },
+  { id: 'theory', label: 'Core Theory', icon: 'CalculatorIcon', subtitle: 'Mathematical foundations + equations' },
+  { id: 'visual', label: 'Visual Explanation & Architecture', icon: 'PhotoIcon', subtitle: 'Data flow diagrams + architecture' },
+  { id: 'implementation', label: 'Practical Implementation', icon: 'CodeBracketIcon', subtitle: 'OpenCV / PyTorch code examples' },
+  { id: 'hyperparameters', label: 'Hyperparameters & Design Choices', icon: 'AdjustmentsHorizontalIcon', subtitle: 'What to tune, typical values, tradeoffs' },
+  { id: 'pitfalls', label: 'Common Pitfalls & Debugging', icon: 'BugAntIcon', subtitle: 'What goes wrong and how to fix it' },
+  { id: 'applications', label: 'Real-World Applications', icon: 'BuildingOffice2Icon', subtitle: 'Industry use cases + company examples' },
+  { id: 'interview', label: 'Important Interview Questions', icon: 'ChatBubbleLeftRightIcon', subtitle: 'Conceptual + coding + detailed answers' },
+  { id: 'comparison', label: 'Comparison with Alternatives', icon: 'ScaleIcon', subtitle: 'Tradeoff table + when to use each' },
+  { id: 'paper', label: 'Paper & Research Context', icon: 'DocumentMagnifyingGlassIcon', subtitle: 'Original paper + SOTA evolution' },
+  { id: 'quiz', label: 'Quiz', icon: 'TrophyIcon', subtitle: '4 questions, score tracked, generate more' },
+  { id: 'references', label: 'References & Resources', icon: 'BookOpenIcon', subtitle: 'CS231n, Papers With Code, OpenCV docs' },
 ];
+
+const QUIZ_BANK = [
+  { q: 'Why is the HSV color space preferred over RGB for color-based object segmentation?', options: ['It uses fewer channels', 'It separates intensity/value from color/hue information', 'It is computationally faster to read', 'RGB is deprecated'], answer: 1, explanation: 'In HSV, Hue represents pure color. This isolates color values from illumination and shadowing variations (which affect Saturation and Value), making thresholding far more robust.' },
+  { q: 'What is the mathematical definition of a Sobel kernel in the X direction?', options: ['A symmetric blur kernel', 'A derivative filter approximating horizontal gradients', 'An identity matrix', 'A high pass sharpening kernel'], answer: 1, explanation: 'The Sobel X operator estimates the horizontal gradient of an image (change in intensity from left to right) using local differentiation.' },
+  { q: 'In Canny edge detection, what is the purpose of non-maximum suppression?', options: ['To remove color channels', 'To thin the detected edge boundaries into single-pixel wide lines', 'To increase the thickness of edges', 'To normalise lighting gradients'], answer: 1, explanation: 'Non-maximum suppression suppresses all gradient values that are not local maxima along the gradient direction, keeping only the thin ridge lines.' },
+  { q: 'What is the main difference between Erosion and Dilation in mathematical morphology?', options: ['Erosion expands white regions; Dilation shrinks them', 'Erosion shrinks white regions; Dilation expands them', 'Dilation is only for color images', 'Erosion removes high frequencies'], answer: 1, explanation: 'Erosion shrinks foreground objects (binary 1s) by requiring all structural element pixels to fit, while Dilation expands boundaries.' },
+];
+
+function diffColor(d: string) {
+  if (d === 'Easy') return 'text-success bg-success/10';
+  if (d === 'Easy-Medium') return 'text-success/80 bg-success/5 border border-success/10';
+  if (d === 'Medium') return 'text-warning bg-warning/10';
+  if (d === 'Medium-Hard') return 'text-warning/80 bg-warning/5 border border-warning/10';
+  if (d === 'Mixed') return 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/10';
+  return 'text-error bg-error/10';
+}
 
 function initSections(): Record<string, SectionState> {
   return Object.fromEntries(SECTION_DEFS.map(s => [s.id, { generated: false, generating: false, content: '' }]));
 }
 
-function diffColor(d: string) {
-  return d === 'Easy' ? 'text-success bg-success/10' : d === 'Hard' ? 'text-error bg-error/10' : 'text-warning bg-warning/10';
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
 export default function DSALabInteractive() {
-  const [topics] = useState<TopicGroup[]>(TOPICS);
-  const [selectedTopicId, setSelectedTopicId] = useState('arrays');
-  const [selectedProblemId, setSelectedProblemId] = useState<string | null>(null);
-  const [selectedRefId, setSelectedRefId] = useState<string | null>(null);
-  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set(['arrays']));
-  const [sections, setSections] = useState<Record<string, SectionState>>({});
-  const [customInput, setCustomInput] = useState('');
-  const [addingCustom, setAddingCustom] = useState(false);
-  const [customProblems, setCustomProblems] = useState<DSAProblem[]>([]);
+  const [topics, setTopics] = useState<DSATopic[]>(TOPICS);
+  const [selectedTopicId, setSelectedTopicId] = useState('wiki');
+  const [selectedSubtopicId, setSelectedSubtopicId] = useState<string | null>(null);
+  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
+  const [sections, setSections] = useState<Record<string, SectionState>>(initSections());
+  const [newTopicInput, setNewTopicInput] = useState('');
+  const [addingTopic, setAddingTopic] = useState(false);
+  const [addingSubtopicTo, setAddingSubtopicTo] = useState<string | null>(null);
+  const [newSubtopicInput, setNewSubtopicInput] = useState('');
   const [quizBatch, setQuizBatch] = useState(0);
-  const [quizBank, setQuizBank] = useState<any[]>([]);
 
-  const currentTopic = topics.find(t => t.id === selectedTopicId);
-  const allProblems = [...(currentTopic?.problems ?? []), ...customProblems.filter(p => p.tags.includes(selectedTopicId))];
-  const selectedProblem = allProblems.find(p => p.id === selectedProblemId) ?? null;
-  const selectedRef = currentTopic?.references.find(r => r.id === selectedRefId) ?? null;
-  const contextLabel = selectedProblem?.name ?? selectedRef?.label ?? currentTopic?.label ?? 'DSA';
+  const [sectionsData, setSectionsData] = useState<{id: number, labName: string, name: string, isCustom: boolean}[]>([]);
+  const [addingSection, setAddingSection] = useState(false);
+  const [customSectionInput, setCustomSectionInput] = useState('');
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [addingTopicToSection, setAddingTopicToSection] = useState<string | null>(null);
+  const [newTopicInputSection, setNewTopicInputSection] = useState('');
 
-  const flatTopics = topics.flatMap(t => [
-    { id: t.id, type: 'topic', label: t.label, topicId: t.id },
-    ...t.problems.map(p => ({ id: p.id, type: 'problem', label: p.name, topicId: t.id })),
-  ]);
-  const currentIdx = selectedProblem ? flatTopics.findIndex(x => x.id === selectedProblemId) : -1;
-  const prevItem = currentIdx > 0 ? flatTopics[currentIdx - 1] : null;
-  const nextItem = currentIdx >= 0 && currentIdx < flatTopics.length - 1 ? flatTopics[currentIdx + 1] : null;
+  useEffect(() => {
+    fetch('http://localhost:8000/dsa/sections')
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then(data => {
+        setSectionsData(data);
+        setExpandedSections(new Set(data.map((s: any) => s.name)));
+      })
+      .catch(err => console.error("Error fetching sections:", err));
+  }, []);
 
-  const navigateTo = (item: typeof flatTopics[0]) => {
-    setSelectedTopicId(item.topicId);
-    if (item.type === 'problem') { setSelectedProblemId(item.id); setSelectedRefId(null); setSections(initSections()); setQuizBatch(0); setQuizBank([]); }
-    else { setSelectedProblemId(null); setSelectedRefId(null); setSections({}); }
+  const handleAddCustomSection = () => {
+    if (!customSectionInput.trim()) return;
+    setAddingSection(true);
+    const newSection = { name: customSectionInput.trim(), isCustom: true };
+    fetch('http://localhost:8000/dsa/sections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newSection)
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then(() => {
+        setSectionsData(prev => [...prev, { id: Date.now(), labName: 'dsa', name: newSection.name, isCustom: true }]);
+        setExpandedSections(prev => new Set([...prev, newSection.name]));
+        setCustomSectionInput('');
+        setAddingSection(false);
+      })
+      .catch(err => {
+        console.error("Error saving custom section:", err);
+        setAddingSection(false);
+      });
   };
 
-  const selectProblem = (topicId: string, problemId: string) => {
-    setSelectedTopicId(topicId);
-    setSelectedProblemId(problemId);
-    setSelectedRefId(null);
+  const handleAddTopicToSection = (sectionName: string) => {
+    if (!newTopicInputSection.trim()) return;
+    const newTopic = {
+      id: `custom-${Date.now()}`,
+      name: newTopicInputSection.trim(),
+      brief: 'Custom topic.',
+      category: sectionName,
+      difficulty: 'Medium',
+      prerequisites: [],
+      subtopics: []
+    };
+
+    fetch('http://localhost:8000/dsa/topics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newTopic)
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then(() => {
+        setTopics(prev => [...prev, newTopic]);
+        setNewTopicInputSection('');
+        setAddingTopicToSection(null);
+      })
+      .catch(err => {
+        console.error("Error saving topic to DB:", err);
+        setTopics(prev => [...prev, newTopic]);
+        setNewTopicInputSection('');
+        setAddingTopicToSection(null);
+      });
+  };
+
+
+  useEffect(() => {
+    fetch('http://localhost:8000/dsa/topics')
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then((data: DSATopic[]) => {
+        if (data && data.length > 0) {
+          setTopics(data);
+        } else {
+          setTopics(TOPICS);
+        }
+      })
+      .catch(err => {
+        console.error("Error fetching CV topics, falling back to static list:", err);
+        setTopics(TOPICS);
+      });
+  }, []);
+
+  const handleAddSubtopic = (topicId: string) => {
+    if (!newSubtopicInput.trim()) return;
+    const parentTopic = allTopics.find(t => t.id === topicId);
+    if (!parentTopic) return;
+
+    const newSubtopic = {
+      id: `sub-${Date.now()}`,
+      name: newSubtopicInput.trim(),
+      brief: 'Custom subtopic.'
+    };
+
+    const updatedTopic = {
+      ...parentTopic,
+      subtopics: [...parentTopic.subtopics, newSubtopic]
+    };
+
+    fetch('http://localhost:8000/dsa/topics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedTopic)
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then(() => {
+        setTopics(prev => prev.map(t => t.id === topicId ? updatedTopic : t));
+        setNewSubtopicInput('');
+        setAddingSubtopicTo(null);
+        setExpandedTopics(prev => new Set([...prev, topicId]));
+      })
+      .catch(err => {
+        console.error("Error saving subtopic to DB, saving in client state as fallback:", err);
+        setTopics(prev => prev.map(t => t.id === topicId ? updatedTopic : t));
+        setNewSubtopicInput('');
+        setAddingSubtopicTo(null);
+        setExpandedTopics(prev => new Set([...prev, topicId]));
+      });
+  };
+
+  const allTopics = topics.length > 0 ? topics : TOPICS;
+  const dynamicSections = sectionsData.map(s => s.name);
+  const allSectionNames = Array.from(new Set([...dynamicSections, ...allTopics.map(t => t.category)]));
+  const groupedSections = allSectionNames.map(sectionName => ({
+    name: sectionName,
+    topics: allTopics.filter(t => t.category === sectionName)
+  }));
+  const currentTopic = allTopics.find(t => t.id === selectedTopicId) ?? null;
+  const currentSubtopic = currentTopic?.subtopics.find(s => s.id === selectedSubtopicId) ?? null;
+  const contextLabel = selectedTopicId === 'wiki' ? 'Wiki Index' : (currentSubtopic?.name ?? currentTopic?.name ?? 'Data Structures and Algorithms');
+
+  const flatItems = [
+    { id: 'wiki', type: 'topic', topicId: 'wiki', label: 'Wiki Index' },
+    ...allTopics.flatMap(t => [
+      { id: t.id, type: 'topic', topicId: t.id, label: t.name },
+      ...t.subtopics.map(s => ({ id: s.id, type: 'subtopic', topicId: t.id, label: s.name })),
+    ])
+  ];
+  const activeId = selectedSubtopicId ?? selectedTopicId;
+  const currentIdx = flatItems.findIndex(x => x.id === activeId);
+  const prevItem = currentIdx > 0 ? flatItems[currentIdx - 1] : null;
+  const nextItem = currentIdx >= 0 && currentIdx < flatItems.length - 1 ? flatItems[currentIdx + 1] : null;
+
+  const navigateTo = (item: typeof flatItems[0]) => {
+    setSelectedTopicId(item.topicId);
+    setSelectedSubtopicId(item.type === 'subtopic' ? item.id : null);
     setSections(initSections());
     setQuizBatch(0);
-    setQuizBank(QUIZ_BANK[problemId] ?? QUIZ_BANK.default);
-    setExpandedTopics(prev => new Set([...prev, topicId]));
+    setExpandedTopics(prev => new Set([...prev, item.topicId]));
   };
 
-  const selectRef = (topicId: string, refId: string) => {
-    setSelectedTopicId(topicId);
-    setSelectedRefId(refId);
-    setSelectedProblemId(null);
+  const selectTopic = (id: string) => {
+    setSelectedTopicId(id);
+    setSelectedSubtopicId(null);
     setSections(initSections());
+    setQuizBatch(0);
+    if (id !== 'wiki') {
+      setExpandedTopics(prev => {
+        const n = new Set(prev);
+        n.has(id) ? n.delete(id) : n.add(id);
+        return n;
+      });
+    }
+  };
+
+  const selectSubtopic = (topicId: string, subId: string) => {
+    setSelectedTopicId(topicId);
+    setSelectedSubtopicId(subId);
+    setSections(initSections());
+    setQuizBatch(0);
     setExpandedTopics(prev => new Set([...prev, topicId]));
   };
 
   const generateSection = (sectionId: string) => {
-    if (!selectedProblem) return;
+    if (!currentTopic) return;
     setSections(prev => ({ ...prev, [sectionId]: { ...prev[sectionId], generating: true } }));
     setTimeout(() => {
-      const content = getContent(sectionId, selectedProblem);
+      const content = getContent(sectionId, currentTopic);
       setSections(prev => ({ ...prev, [sectionId]: { generated: true, generating: false, content } }));
     }, 1500);
   };
 
-  const handleAddCustom = () => {
-    if (!customInput.trim()) return;
-    setAddingCustom(true);
-    setTimeout(() => {
-      const p: DSAProblem = { id: `custom-${Date.now()}`, name: customInput.trim(), lcNumber: null, brief: 'Custom problem.', difficulty: 'Medium', pattern: 'Custom', tags: [selectedTopicId] };
-      setCustomProblems(prev => [...prev, p]);
-      setCustomInput('');
-      setAddingCustom(false);
-    }, 800);
+  const handleAddTopic = () => {
+    if (!newTopicInput.trim()) return;
+    setAddingTopic(true);
+    const newTopic: DSATopic = {
+      id: `custom-${Date.now()}`,
+      name: newTopicInput.trim(),
+      brief: 'Custom CV topic.',
+      category: 'Custom',
+      difficulty: 'Medium',
+      prerequisites: ['Data Structures and Algorithms Basics'],
+      subtopics: [{ id: `sub-${Date.now()}`, name: 'Core Concepts', brief: 'Fundamental concepts.' }]
+    };
+
+    fetch('http://localhost:8000/dsa/topics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newTopic)
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then(() => {
+        setTopics(prev => [...prev, newTopic]);
+        setNewTopicInput('');
+        setAddingTopic(false);
+      })
+      .catch(err => {
+        console.error("Error saving custom topic to DB, saving in client state as fallback:", err);
+        setTopics(prev => [...prev, newTopic]);
+        setNewTopicInput('');
+        setAddingTopic(false);
+      });
   };
 
   return (
     <div className="min-h-screen bg-background pt-[60px] flex flex-col">
       <div className="flex-1 flex overflow-hidden" style={{ height: 'calc(100vh - 60px)' }}>
 
-        {/* ── LEFT: Problem Tree ─────────────────────────────────────────── */}
+        {/* ── LEFT: Topic Tree ────────────────────────────────────────────── */}
         <aside className="w-[260px] flex-shrink-0 border-r border-border bg-card flex flex-col">
           <div className="p-14 border-b border-border flex-shrink-0">
             <h2 className="font-heading text-sm font-semibold text-foreground flex items-center gap-9">
-              <Icon name="CpuChipIcon" size={15} className="text-primary" />DSA Lab
+              <Icon name="EyeIcon" size={15} className="text-primary" />DSA Lab
             </h2>
-            <p className="text-xs text-muted-foreground mt-3">Click to load → Generate sections</p>
+            <p className="text-xs text-muted-foreground mt-3 mb-6">Select topic → Generate sections</p>
+            <div className="flex gap-6 mt-4">
+              <input value={newTopicInputSection} onChange={e => setNewTopicInputSection(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddTopic()}
+                placeholder="Add custom topic..."
+                className="flex-1 min-w-0 bg-input border border-border rounded-md px-9 py-6 text-xs focus-ring placeholder:text-muted-foreground" />
+              <button onClick={handleAddTopic} disabled={addingTopic || !newTopicInput.trim()}
+                className="p-6 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-smooth disabled:opacity-50 flex-shrink-0">
+                {addingTopic ? <span className="w-12 h-12 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin block" /> : <Icon name="PlusIcon" size={14} />}
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto py-6">
-            {topics.map(topic => (
-              <div key={topic.id}>
-                <button
-                  onClick={() => { setExpandedTopics(prev => { const n = new Set(prev); n.has(topic.id) ? n.delete(topic.id) : n.add(topic.id); return n; }); setSelectedTopicId(topic.id); setSelectedProblemId(null); setSelectedRefId(null); setSections({}); }}
-                  className={`w-full text-left flex items-center gap-8 px-14 py-9 text-xs font-semibold transition-smooth hover:bg-muted ${selectedTopicId === topic.id && !selectedProblemId && !selectedRefId ? 'bg-primary/10 text-primary border-r-2 border-primary' : 'text-foreground'}`}
-                >
-                  <Icon name={topic.icon as any} size={13} />
-                  <span className="flex-1 truncate">{topic.label}</span>
-                  <Icon name={expandedTopics.has(topic.id) ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={11} className="text-muted-foreground flex-shrink-0" />
-                </button>
-                {expandedTopics.has(topic.id) && (
+            <button onClick={() => selectTopic('wiki')}
+                className={`w-full text-left flex items-start gap-8 px-14 py-9 text-xs font-semibold transition-smooth hover:bg-muted ${selectedTopicId === 'wiki' ? 'bg-primary/10 text-primary border-r-2 border-primary' : 'text-foreground'}`}>
+                <Icon name="BookOpenIcon" size={12} className="flex-shrink-0 mt-3" />
+                <div className="flex-1 min-w-0">
+                  <span className="block truncate">Wiki Index</span>
+                  <div className="flex items-center gap-6 mt-2 flex-wrap">
+                    <span className="text-[9px] text-muted-foreground opacity-85 leading-none">
+                      Dynamic Content
+                    </span>
+                  </div>
+                </div>
+            </button>
+            {groupedSections.map(section => (
+              <div key={section.name} className="mt-2">
+                <div className="flex items-center px-14 py-6 group cursor-pointer hover:bg-muted/50 transition-smooth" onClick={() => setExpandedSections(prev => { const n = new Set(prev); n.has(section.name) ? n.delete(section.name) : n.add(section.name); return n; })}>
+                  <Icon name={expandedSections.has(section.name) ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={12} className="text-muted-foreground mr-6 flex-shrink-0" />
+                  <span className="text-xs font-bold text-foreground uppercase tracking-wider flex-1 truncate">{section.name}</span>
+                  <button onClick={(e) => { e.stopPropagation(); setAddingTopicToSection(addingTopicToSection === section.name ? null : section.name); }}
+                    className="p-4 text-muted-foreground hover:text-foreground hover:bg-border rounded-full transition-smooth opacity-0 group-hover:opacity-100 flex-shrink-0">
+                    <Icon name="PlusIcon" size={12} />
+                  </button>
+                </div>
+                {addingTopicToSection === section.name && (
+                  <div className="px-14 py-6 bg-muted/30 border-y border-border">
+                    <div className="flex gap-4">
+                      <input autoFocus value={newTopicInputSection} onChange={e => setNewTopicInputSection(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddTopicToSection(section.name)}
+                        placeholder="Add topic..."
+                        className="flex-1 min-w-0 bg-input border border-border rounded-sm px-6 py-4 text-[10px] focus-ring placeholder:text-muted-foreground" />
+                      <button onClick={() => handleAddTopicToSection(section.name)} disabled={!newTopicInput.trim()}
+                        className="p-4 bg-secondary text-secondary-foreground rounded-sm hover:bg-secondary/90 transition-smooth disabled:opacity-50 flex-shrink-0">
+                        <Icon name="PlusIcon" size={10} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {expandedSections.has(section.name) && (
                   <div>
-                    {topic.problems.map(p => (
-                      <button key={p.id} onClick={() => selectProblem(topic.id, p.id)}
-                        className={`w-full text-left flex items-center gap-8 pl-22 pr-10 py-7 text-xs transition-smooth hover:bg-muted ${selectedProblemId === p.id ? 'bg-secondary/10 text-secondary border-r-2 border-secondary' : 'text-muted-foreground'}`}>
-                        <span className="text-muted-foreground/40">↳</span>
-                        <span className="flex-1 truncate">{p.name}</span>
-                        {p.lcNumber && <span className="text-muted-foreground/50 font-code text-[10px]">#{p.lcNumber}</span>}
+                    {section.topics.map(topic => (
+              <div key={topic.id}>
+                <button onClick={() => selectTopic(topic.id)}
+                  className={`w-full text-left flex items-start gap-8 px-14 py-9 text-xs font-semibold transition-smooth hover:bg-muted ${selectedTopicId === topic.id && !selectedSubtopicId ? 'bg-primary/10 text-primary border-r-2 border-primary' : 'text-foreground'}`}>
+                  <Icon name="EyeIcon" size={12} className="flex-shrink-0 mt-3" />
+                  <div className="flex-1 min-w-0">
+                    <span className="block truncate">{topic.name}</span>
+                    <div className="flex items-center gap-6 mt-2 flex-wrap">
+                      <span className={`text-[9px] px-5 py-1 rounded font-medium leading-none ${diffColor(topic.difficulty)}`}>
+                        {topic.difficulty}
+                      </span>
+                      <span className="text-[9px] text-muted-foreground opacity-85 leading-none">
+                        {topic.category}
+                      </span>
+                    </div>
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); setAddingSubtopicTo(addingSubtopicTo === topic.id ? null : topic.id); }}
+                    className="p-4 ml-2 text-muted-foreground hover:text-foreground hover:bg-border rounded-full transition-smooth flex-shrink-0">
+                    <Icon name="PlusIcon" size={10} />
+                  </button>
+                  <Icon name={expandedTopics.has(topic.id) ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={11} className="text-muted-foreground flex-shrink-0 mt-3 ml-2" />
+                </button>
+                {addingSubtopicTo === topic.id && (
+                  <div className="px-14 py-6 bg-muted/30 border-y border-border">
+                    <div className="flex gap-4">
+                      <input autoFocus value={newSubtopicInput} onChange={e => setNewSubtopicInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddSubtopic(topic.id)}
+                        placeholder="Add subtopic..."
+                        className="flex-1 min-w-0 bg-input border border-border rounded-sm px-6 py-4 text-[10px] focus-ring placeholder:text-muted-foreground" />
+                      <button onClick={() => handleAddSubtopic(topic.id)} disabled={!newSubtopicInput.trim()}
+                        className="p-4 bg-secondary text-secondary-foreground rounded-sm hover:bg-secondary/90 transition-smooth disabled:opacity-50 flex-shrink-0">
+                        <Icon name="PlusIcon" size={10} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {expandedTopics.has(topic.id) && topic.subtopics.length > 0 && (
+                  <div>
+                    {topic.subtopics.map(sub => (
+                      <button key={sub.id} onClick={() => selectSubtopic(topic.id, sub.id)}
+                        className={`w-full text-left flex flex-col pl-26 pr-14 py-8 text-xs transition-smooth hover:bg-muted ${selectedSubtopicId === sub.id ? 'bg-secondary/10 text-secondary border-r-2 border-secondary' : 'text-muted-foreground'}`}>
+                        <span className="font-medium truncate">↳ {sub.name}</span>
+                        <span className="text-[10px] opacity-70 truncate mt-1">{sub.brief}</span>
                       </button>
                     ))}
-                    {customProblems.filter(cp => cp.tags.includes(topic.id)).map(p => (
-                      <button key={p.id} onClick={() => selectProblem(topic.id, p.id)}
-                        className={`w-full text-left flex items-center gap-8 pl-22 pr-10 py-7 text-xs transition-smooth hover:bg-muted ${selectedProblemId === p.id ? 'bg-secondary/10 text-secondary border-r-2 border-secondary' : 'text-muted-foreground'}`}>
-                        <span className="text-muted-foreground/40">↳</span>
-                        <span className="flex-1 truncate">{p.name}</span>
-                        <span className="text-xs text-accent">custom</span>
-                      </button>
-                    ))}
-                    {topic.references.map(ref => (
-                      <button key={ref.id} onClick={() => selectRef(topic.id, ref.id)}
-                        className={`w-full text-left flex items-center gap-8 pl-22 pr-10 py-7 text-xs transition-smooth hover:bg-muted ${selectedRefId === ref.id ? 'bg-accent/10 text-accent border-r-2 border-accent' : 'text-muted-foreground/60'}`}>
-                        <span className="text-muted-foreground/40">↳</span>
-                        <span className="flex-1 truncate">{ref.label}</span>
-                      </button>
+                  </div>
+                )}
+              </div>
                     ))}
                   </div>
                 )}
               </div>
             ))}
           </div>
-
-          {/* Add custom */}
-          <div className="p-12 border-t border-border flex-shrink-0">
-            <div className="flex gap-6">
-              <input value={customInput} onChange={e => setCustomInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddCustom()}
-                placeholder="Add problem / topic..."
-                className="flex-1 min-w-0 bg-input border border-border rounded-md px-9 py-6 text-xs focus-ring placeholder:text-muted-foreground" />
-              <button onClick={handleAddCustom} disabled={addingCustom || !customInput.trim()}
-                className="p-6 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-smooth disabled:opacity-50 flex-shrink-0">
-                {addingCustom ? <span className="w-12 h-12 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin block" /> : <Icon name="PlusIcon" size={14} />}
-              </button>
-            </div>
-          </div>
         </aside>
 
-        {/* ── CENTER: Content ────────────────────────────────────────────── */}
+        {/* ── CENTER ────────────────────────────────────────────────────────── */}
         <main className="flex-1 overflow-y-auto">
-          {!selectedProblem && !selectedRef ? (
-            <div className="flex flex-col items-center justify-center h-full text-center px-24">
-              <div className="w-64 h-64 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-18">
-                <Icon name="CpuChipIcon" size={32} variant="outline" className="text-primary" />
+          {selectedTopicId === 'wiki' ? (
+            <div className="p-20 space-y-14 max-w-4xl mx-auto">
+              <div className="bg-card border border-border rounded-lg p-20 shadow-sm text-center">
+                <Icon name="BookOpenIcon" size={42} className="text-primary mb-6 mx-auto" />
+                <h1 className="font-heading text-2xl font-bold text-foreground mb-4">DSA Lab Wiki</h1>
+                <p className="text-sm text-muted-foreground max-w-lg mx-auto">
+                  A dynamic, auto-generated reference guide constructed from all AI and user-generated Data Structures and Algorithms topics.
+                </p>
               </div>
-              <h2 className="font-heading text-xl font-semibold text-foreground mb-9">Select a Problem</h2>
-              <p className="text-sm text-muted-foreground max-w-sm">Choose a problem from the left sidebar. Each section generates on-demand to save tokens.</p>
+              <div className="space-y-12">
+                {groupedSections.map(section => (
+                  <div key={section.name} className="space-y-6">
+                    <h2 className="text-xl font-bold text-foreground border-b border-border pb-2 mt-8 mb-4">{section.name}</h2>
+                    {section.topics.map(t => (
+                  <div key={t.id} className="border border-border bg-card rounded-md p-14 shadow-sm">
+                    <div className="flex items-center gap-6 mb-4">
+                      <span className={`text-[10px] px-6 py-2 rounded font-semibold ${diffColor(t.difficulty)}`}>{t.difficulty}</span>
+                      <span className="text-[10px] bg-muted text-muted-foreground px-6 py-2 rounded">{t.category}</span>
+                    </div>
+                    <h2 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-6 cursor-pointer hover:text-primary transition-smooth" onClick={() => selectTopic(t.id)}>
+                      {t.name}
+                    </h2>
+                    <p className="text-sm text-muted-foreground mb-8">{t.brief}</p>
+                    
+                    {t.prerequisites.length > 0 && (
+                      <div className="mb-6">
+                        <span className="text-xs text-muted-foreground font-medium block mb-2">Prerequisites:</span>
+                        <div className="flex flex-wrap gap-4">
+                          {t.prerequisites.map(p => (
+                            <span key={p} className="text-[10px] bg-primary/5 text-primary border border-primary/10 px-4 py-1 rounded">{p}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="bg-background border border-border rounded-md p-6">
+                      <h3 className="text-xs font-semibold text-foreground mb-4 pl-4 border-l-2 border-primary">Subtopics</h3>
+                      {t.subtopics.length > 0 ? (
+                        <ul className="space-y-3">
+                          {t.subtopics.map(s => (
+                            <li key={s.id} className="text-sm flex flex-col gap-1 pl-4 cursor-pointer group" onClick={() => selectSubtopic(t.id, s.id)}>
+                              <span className="font-medium text-foreground group-hover:text-primary transition-smooth flex items-center gap-4">
+                                <Icon name="ChevronRightIcon" size={10} className="text-primary group-hover:scale-110 transition-transform" />
+                                {s.name}
+                              </span>
+                              <span className="text-xs text-muted-foreground pl-6 group-hover:text-foreground transition-smooth">{s.brief}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic pl-4">No subtopics added yet.</p>
+                      )}
+                    </div>
+                  </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : !currentTopic ? (
+            <div className="flex flex-col items-center justify-center h-full text-center px-24">
+              <Icon name="EyeIcon" size={48} variant="outline" className="text-muted-foreground/30 mb-18" />
+              <h2 className="font-heading text-xl font-semibold text-foreground mb-9">Select a CV Topic</h2>
+              <p className="text-sm text-muted-foreground max-w-sm">Choose a topic from the sidebar. Content generates on-demand per section.</p>
             </div>
           ) : (
             <div className="p-20 space-y-14">
-              {/* Problem header */}
-              {selectedProblem && (
-                <div className="bg-card border border-border rounded-lg p-20 shadow-sm">
-                  <div className="flex items-start justify-between gap-18 flex-wrap">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-9 mb-9">
-                        {selectedProblem.lcNumber && <span className="font-code text-xs text-muted-foreground bg-muted px-9 py-4 rounded-md">LC #{selectedProblem.lcNumber}</span>}
-                        <span className={`text-xs font-semibold px-9 py-4 rounded-md ${diffColor(selectedProblem.difficulty)}`}>{selectedProblem.difficulty}</span>
-                        <span className="text-xs px-9 py-4 rounded-md bg-secondary/10 text-secondary">{selectedProblem.pattern}</span>
-                        {selectedProblem.tags.map(tag => <span key={tag} className="text-xs px-7 py-3 rounded bg-muted text-muted-foreground font-code">{tag}</span>)}
-                      </div>
-                      <h1 className="font-heading text-2xl font-bold text-foreground mb-6">{selectedProblem.name}</h1>
-                      <p className="text-sm text-muted-foreground">{selectedProblem.brief}</p>
-                    </div>
-                    {selectedProblem.lcNumber && (
-                      <a href={`https://leetcode.com/problems/${selectedProblem.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}/`} target="_blank" rel="noopener noreferrer"
-                        className="flex-shrink-0 flex items-center gap-6 px-12 py-7 border border-border rounded-md text-xs text-foreground hover:bg-muted transition-smooth">
-                        <Icon name="ArrowTopRightOnSquareIcon" size={13} /> Open on LeetCode
-                      </a>
-                    )}
+              {/* Header */}
+              <div className="bg-card border border-border rounded-lg p-20 shadow-sm">
+                <div className="flex items-center gap-9 mb-9">
+                  <span className="text-xs bg-primary/10 text-primary px-9 py-4 rounded-md">{currentTopic.category}</span>
+                  <span className={`text-xs px-9 py-4 rounded-md font-semibold ${diffColor(currentTopic.difficulty)}`}>{currentTopic.difficulty}</span>
+                  {currentSubtopic && <span className="text-xs bg-secondary/10 text-secondary px-9 py-4 rounded-md">Subtopic</span>}
+                </div>
+                <h1 className="font-heading text-2xl font-bold text-foreground mb-6">
+                  {currentSubtopic?.name ?? currentTopic.name}
+                </h1>
+                <p className="text-sm text-muted-foreground mb-12">{currentSubtopic?.brief ?? currentTopic.brief}</p>
+                {currentTopic.prerequisites.length > 0 && (
+                  <div className="flex flex-wrap gap-6">
+                    <span className="text-xs text-muted-foreground">Prerequisites:</span>
+                    {currentTopic.prerequisites.map(p => (
+                      <span key={p} className="text-xs px-9 py-4 rounded-md bg-muted text-muted-foreground">{p}</span>
+                    ))}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
-              {selectedRef && (
-                <div className="bg-card border border-border rounded-lg p-20 shadow-sm">
-                  <h1 className="font-heading text-xl font-bold text-foreground mb-6">{selectedRef.label}</h1>
-                  <p className="text-sm text-muted-foreground">Reference learning material. Generate sections below to explore the theory.</p>
-                </div>
-              )}
-
-              {/* Sections */}
+              {/* On-demand sections */}
               {SECTION_DEFS.map((def, idx) => {
                 const s = sections[def.id] ?? { generated: false, generating: false, content: '' };
                 return (
-                  <OnDemandSection
-                    key={def.id}
-                    sectionIndex={idx + 1}
-                    icon={def.icon}
-                    title={def.label}
-                    subtitle={def.subtitle}
-                    content={s.content}
-                    isGenerated={s.generated}
-                    isGenerating={s.generating}
-                    onGenerate={() => generateSection(def.id)}
-                  >
+                  <OnDemandSection key={def.id} sectionIndex={idx + 1} icon={def.icon} title={def.label} subtitle={def.subtitle}
+                    content={s.content} isGenerated={s.generated} isGenerating={s.generating} onGenerate={() => generateSection(def.id)}>
                     {def.id === 'quiz' && s.generated ? (
-                      <QuizCarousel
-                        questions={quizBank.slice(quizBatch * 4, quizBatch * 4 + 4)}
-                        hasMore={(quizBatch + 1) * 4 < 16}
-                        onGenerateMore={() => {
-                          const more = (QUIZ_BANK.default ?? []).map(q => ({ ...q, q: `[Batch ${quizBatch + 2}] ` + q.q }));
-                          setQuizBank(prev => [...prev, ...more]);
-                          setQuizBatch(b => b + 1);
-                        }}
-                      />
+                      <QuizCarousel questions={QUIZ_BANK.slice(quizBatch * 4, quizBatch * 4 + 4)} hasMore={true}
+                        onGenerateMore={() => setQuizBatch(b => b + 1)} />
                     ) : undefined}
                   </OnDemandSection>
                 );
               })}
 
-              {/* Prev / Next navigation */}
-              {selectedProblem && (
-                <div className="flex items-center justify-between py-18 border-t border-border mt-24">
-                  <button disabled={!prevItem} onClick={() => prevItem && navigateTo(prevItem)}
-                    className="flex items-center gap-9 px-16 py-10 rounded-md border border-border text-sm text-foreground hover:bg-muted transition-smooth disabled:opacity-30 disabled:pointer-events-none">
-                    <Icon name="ArrowLeftIcon" size={14} />
-                    <span>{prevItem ? prevItem.label : 'No previous'}</span>
-                  </button>
-                  <button disabled={!nextItem} onClick={() => nextItem && navigateTo(nextItem)}
-                    className="flex items-center gap-9 px-16 py-10 rounded-md border border-border text-sm text-foreground hover:bg-muted transition-smooth disabled:opacity-30 disabled:pointer-events-none">
-                    <span>{nextItem ? nextItem.label : 'No next'}</span>
-                    <Icon name="ArrowRightIcon" size={14} />
-                  </button>
-                </div>
-              )}
+              {/* Prev / Next */}
+              <div className="flex items-center justify-between py-18 border-t border-border mt-24">
+                <button disabled={!prevItem} onClick={() => prevItem && navigateTo(prevItem)}
+                  className="flex items-center gap-9 px-16 py-10 rounded-md border border-border text-sm text-foreground hover:bg-muted transition-smooth disabled:opacity-30 disabled:pointer-events-none">
+                  <Icon name="ArrowLeftIcon" size={14} />{prevItem?.label ?? 'No previous'}
+                </button>
+                <button disabled={!nextItem} onClick={() => nextItem && navigateTo(nextItem)}
+                  className="flex items-center gap-9 px-16 py-10 rounded-md border border-border text-sm text-foreground hover:bg-muted transition-smooth disabled:opacity-30 disabled:pointer-events-none">
+                  {nextItem?.label ?? 'No next'}<Icon name="ArrowRightIcon" size={14} />
+                </button>
+              </div>
             </div>
           )}
         </main>

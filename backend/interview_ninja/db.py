@@ -128,6 +128,17 @@ def init_db() -> None:
             )
         """)
         
+        # Create lab_sections table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS lab_sections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lab_name TEXT NOT NULL,
+                name TEXT NOT NULL,
+                is_custom INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(lab_name, name)
+            )
+        """)
+
         # Create cv_topics table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS cv_topics (
@@ -141,9 +152,50 @@ def init_db() -> None:
                 is_custom INTEGER NOT NULL DEFAULT 0
             )
         """)
+
+        # Create dsa_topics table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS dsa_topics (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                brief TEXT NOT NULL,
+                category TEXT NOT NULL,
+                difficulty TEXT NOT NULL,
+                prerequisites_json TEXT NOT NULL DEFAULT '[]',
+                subtopics_json TEXT NOT NULL DEFAULT '[]',
+                is_custom INTEGER NOT NULL DEFAULT 0
+            )
+        """)
         
         seed_system_design_topics(cursor)
         seed_cv_topics(cursor)
+        seed_dsa_topics(cursor)
+
+        # Seed lab_sections from topics
+        cursor.execute("""
+            INSERT OR IGNORE INTO lab_sections (lab_name, name, is_custom)
+            SELECT DISTINCT 'system_design', category, 0 FROM system_design_topics WHERE is_custom = 0
+        """)
+        cursor.execute("""
+            INSERT OR IGNORE INTO lab_sections (lab_name, name, is_custom)
+            SELECT DISTINCT 'system_design', category, 1 FROM system_design_topics WHERE is_custom = 1
+        """)
+        cursor.execute("""
+            INSERT OR IGNORE INTO lab_sections (lab_name, name, is_custom)
+            SELECT DISTINCT 'cv', category, 0 FROM cv_topics WHERE is_custom = 0
+        """)
+        cursor.execute("""
+            INSERT OR IGNORE INTO lab_sections (lab_name, name, is_custom)
+            SELECT DISTINCT 'cv', category, 1 FROM cv_topics WHERE is_custom = 1
+        """)
+        cursor.execute("""
+            INSERT OR IGNORE INTO lab_sections (lab_name, name, is_custom)
+            SELECT DISTINCT 'dsa', category, 0 FROM dsa_topics WHERE is_custom = 0
+        """)
+        cursor.execute("""
+            INSERT OR IGNORE INTO lab_sections (lab_name, name, is_custom)
+            SELECT DISTINCT 'dsa', category, 1 FROM dsa_topics WHERE is_custom = 1
+        """)
         
         conn.commit()
     finally:
@@ -517,7 +569,7 @@ def save_system_design_topic(topic: dict) -> None:
             """
             INSERT OR REPLACE INTO system_design_topics (
                 id, name, brief, category, scale, difficulty, is_lld, subtopics_json, is_custom
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT is_custom FROM system_design_topics WHERE id = ?), 1))
             """,
             (
                 topic["id"],
@@ -528,6 +580,7 @@ def save_system_design_topic(topic: dict) -> None:
                 topic["difficulty"],
                 1 if topic.get("isLLD", False) else 0,
                 json.dumps(topic.get("subtopics", [])),
+                topic["id"]
             )
         )
         conn.commit()
@@ -1242,6 +1295,40 @@ def seed_system_design_topics(cursor: sqlite3.Cursor) -> None:
             )
         )
 
+def fetch_lab_sections(lab_name: str) -> List[dict]:
+    """Retrieve all sections for a specific lab."""
+    conn = sqlite3.connect(get_db_path())
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, lab_name, name, is_custom
+            FROM lab_sections
+            WHERE lab_name = ?
+            ORDER BY is_custom ASC, id ASC
+            """,
+            (lab_name,)
+        )
+        rows = cursor.fetchall()
+        return [{"id": r[0], "labName": r[1], "name": r[2], "isCustom": bool(r[3])} for r in rows]
+    finally:
+        conn.close()
+
+def save_lab_section(lab_name: str, name: str, is_custom: int = 1) -> None:
+    """Save a new lab section."""
+    conn = sqlite3.connect(get_db_path())
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT OR IGNORE INTO lab_sections (lab_name, name, is_custom)
+            VALUES (?, ?, ?)
+            """,
+            (lab_name, name, is_custom)
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 def fetch_cv_topics() -> List[dict]:
     """Retrieve all CV topics from the database, sorted with seeded first."""
@@ -1292,7 +1379,7 @@ def save_cv_topic(topic: dict) -> None:
             """
             INSERT OR REPLACE INTO cv_topics (
                 id, name, brief, category, difficulty, prerequisites_json, subtopics_json, is_custom
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT is_custom FROM cv_topics WHERE id = ?), 1))
             """,
             (
                 topic["id"],
@@ -1302,6 +1389,7 @@ def save_cv_topic(topic: dict) -> None:
                 topic["difficulty"],
                 json.dumps(topic.get("prerequisites", [])),
                 json.dumps(topic.get("subtopics", [])),
+                topic["id"]
             )
         )
         conn.commit()
@@ -1794,3 +1882,1234 @@ def seed_cv_topics(cursor: sqlite3.Cursor) -> None:
             )
         )
 
+
+def seed_dsa_topics(cursor: sqlite3.Cursor) -> None:
+    import json
+    seed_data = [
+        # ── PATTERN 1: PREFIX SUM & CUMULATIVE LOGIC ──────────────────────────
+        {
+            "id": "ps-subarray-sum-k",
+            "name": "Subarray Sum Equals K",
+            "brief": "LC #560 [Medium] — prefix sum + hashmap",
+            "category": "Prefix Sum & Cumulative Logic",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "ps-560-python", "name": "Python", "brief": "collections.defaultdict(int) for frequency map"},
+                {"id": "ps-560-real", "name": "Real-World", "brief": "Financial transaction anomaly detection (sum of transactions in a window)"},
+                {"id": "ps-560-remember", "name": "Remember", "brief": "prefix_sum - k lookup, not sliding window (negative numbers exist)"},
+                {"id": "ps-560-edge", "name": "Edge", "brief": "prefix_sum map starts with {0: 1}, not empty"},
+            ],
+        },
+        {
+            "id": "ps-product-except-self",
+            "name": "Product of Array Except Self",
+            "brief": "LC #238 [Medium] — left × right pass",
+            "category": "Prefix Sum & Cumulative Logic",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "ps-238-python", "name": "Python", "brief": "list comprehension with running product, no division"},
+                {"id": "ps-238-real", "name": "Real-World", "brief": "Recommendation scoring (multiply all feature weights except current)"},
+                {"id": "ps-238-remember", "name": "Remember", "brief": "Left pass × Right pass trick, O(1) extra space using output array"},
+                {"id": "ps-238-edge", "name": "Edge", "brief": "Zeros in array break division approach, prefix product handles it"},
+            ],
+        },
+        {
+            "id": "ps-range-sum-query",
+            "name": "Range Sum Query - Immutable",
+            "brief": "LC #303 [Easy] — itertools.accumulate",
+            "category": "Prefix Sum & Cumulative Logic",
+            "difficulty": "Easy",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "ps-303-python", "name": "Python", "brief": "itertools.accumulate for one-liner prefix sum"},
+                {"id": "ps-303-real", "name": "Real-World", "brief": "Dashboard analytics (sum of metrics over any date range)"},
+                {"id": "ps-303-remember", "name": "Remember", "brief": "prefix[right+1] - prefix[left], off-by-one kills you"},
+                {"id": "ps-303-edge", "name": "Edge", "brief": "Single element range, full array range"},
+            ],
+        },
+        {
+            "id": "ps-contiguous-array",
+            "name": "Contiguous Array",
+            "brief": "LC #525 [Medium] — 0→-1 transform + prefix sum",
+            "category": "Prefix Sum & Cumulative Logic",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "ps-525-python", "name": "Python", "brief": "dict for first-seen index of running sum"},
+                {"id": "ps-525-real", "name": "Real-World", "brief": "Network packet analysis (equal 0s and 1s = balanced traffic)"},
+                {"id": "ps-525-remember", "name": "Remember", "brief": "Treat 0 as -1, reduce to 'subarray sum = 0' problem"},
+                {"id": "ps-525-edge", "name": "Edge", "brief": "Entire array is the answer, store index -1 for sum 0"},
+            ],
+        },
+        # ── PATTERN 2: TWO POINTERS ───────────────────────────────────────────
+        {
+            "id": "tp-3sum",
+            "name": "3Sum",
+            "brief": "LC #15 [Medium] — sort + two pointers",
+            "category": "Two Pointers",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "tp-15-python", "name": "Python", "brief": "sort + two pointers, skip duplicates with while loops"},
+                {"id": "tp-15-real", "name": "Real-World", "brief": "Chemistry (finding 3 reagents that balance to neutral pH)"},
+                {"id": "tp-15-remember", "name": "Remember", "brief": "Sort first, fix one element, two-pointer on rest. Dedup at BOTH levels"},
+                {"id": "tp-15-edge", "name": "Edge", "brief": "All zeros [0,0,0,0], all negatives, array with duplicates"},
+            ],
+        },
+        {
+            "id": "tp-container-most-water",
+            "name": "Container With Most Water",
+            "brief": "LC #11 [Medium] — move shorter pointer",
+            "category": "Two Pointers",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "tp-11-python", "name": "Python", "brief": "max() with two pointers from both ends"},
+                {"id": "tp-11-real", "name": "Real-World", "brief": "Warehouse shelf placement (maximize storage between two walls)"},
+                {"id": "tp-11-remember", "name": "Remember", "brief": "Move the SHORTER pointer (greedy). Width decreases, so only height increase helps"},
+                {"id": "tp-11-edge", "name": "Edge", "brief": "Monotonically increasing/decreasing heights"},
+            ],
+        },
+        {
+            "id": "tp-trapping-rain-water",
+            "name": "Trapping Rain Water",
+            "brief": "LC #42 [Hard] — two pointer with left/right max",
+            "category": "Two Pointers",
+            "difficulty": "Hard",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "tp-42-python", "name": "Python", "brief": "Two-pointer with left_max, right_max tracking"},
+                {"id": "tp-42-real", "name": "Real-World", "brief": "Terrain flooding simulation, reservoir capacity estimation"},
+                {"id": "tp-42-remember", "name": "Remember", "brief": "Water at i = min(left_max, right_max) - height[i]. Two-pointer avoids O(n) space"},
+                {"id": "tp-42-edge", "name": "Edge", "brief": "Flat surface (no trap), single peak, valley at edges"},
+            ],
+        },
+        {
+            "id": "tp-valid-palindrome-ii",
+            "name": "Valid Palindrome II",
+            "brief": "LC #680 [Easy] — try skip left OR right",
+            "category": "Two Pointers",
+            "difficulty": "Easy",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "tp-680-python", "name": "Python", "brief": "string slicing s[i+1:j+1] or s[i:j] for skip check"},
+                {"id": "tp-680-real", "name": "Real-World", "brief": "Spell-checker (allow one typo tolerance)"},
+                {"id": "tp-680-remember", "name": "Remember", "brief": "On mismatch, try skipping left OR right, check both"},
+                {"id": "tp-680-edge", "name": "Edge", "brief": "Already palindrome, single char, skip first or last char"},
+            ],
+        },
+        # ── PATTERN 3: SLIDING WINDOW ─────────────────────────────────────────
+        {
+            "id": "sw-min-window-substring",
+            "name": "Minimum Window Substring",
+            "brief": "LC #76 [Hard] — expand right, shrink left",
+            "category": "Sliding Window",
+            "difficulty": "Hard",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "sw-76-python", "name": "Python", "brief": "collections.Counter for need/have maps, expandable window"},
+                {"id": "sw-76-real", "name": "Real-World", "brief": "Log search (smallest time window containing all error types)"},
+                {"id": "sw-76-remember", "name": "Remember", "brief": "Expand right until valid, shrink left to minimize. Track 'formed' count"},
+                {"id": "sw-76-edge", "name": "Edge", "brief": "t has duplicate chars, t longer than s, single char match"},
+            ],
+        },
+        {
+            "id": "sw-longest-no-repeat",
+            "name": "Longest Substring Without Repeating Characters",
+            "brief": "LC #3 [Medium] — char last-index dict",
+            "category": "Sliding Window",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "sw-3-python", "name": "Python", "brief": "dict storing last index of each char, update left = max(left, last_seen+1)"},
+                {"id": "sw-3-real", "name": "Real-World", "brief": "Unique session tracking (longest streak of unique page visits)"},
+                {"id": "sw-3-remember", "name": "Remember", "brief": "Don't reset left backward. Use max() to only move forward"},
+                {"id": "sw-3-edge", "name": "Edge", "brief": "All same chars 'aaaa', all unique 'abcdef', empty string"},
+            ],
+        },
+        {
+            "id": "sw-sliding-window-max",
+            "name": "Sliding Window Maximum",
+            "brief": "LC #239 [Hard] — monotonic deque of indices",
+            "category": "Sliding Window",
+            "difficulty": "Hard",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "sw-239-python", "name": "Python", "brief": "collections.deque as monotonic decreasing deque"},
+                {"id": "sw-239-real", "name": "Real-World", "brief": "Stock market (max price in rolling k-day window), sensor peak detection"},
+                {"id": "sw-239-remember", "name": "Remember", "brief": "Deque stores INDICES not values. Pop from back if smaller, pop from front if out of window"},
+                {"id": "sw-239-edge", "name": "Edge", "brief": "k=1 (return array itself), k=len(nums), all equal elements"},
+            ],
+        },
+        {
+            "id": "sw-longest-repeating-replacement",
+            "name": "Longest Repeating Character Replacement",
+            "brief": "LC #424 [Medium] — window size - max_freq <= k",
+            "category": "Sliding Window",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "sw-424-python", "name": "Python", "brief": "Counter + window where len - max_freq <= k"},
+                {"id": "sw-424-real", "name": "Real-World", "brief": "DNA mutation analysis (longest strand achievable with k mutations)"},
+                {"id": "sw-424-remember", "name": "Remember", "brief": "Window is valid if (window_size - count_of_most_frequent) <= k. Never shrink max_freq"},
+                {"id": "sw-424-edge", "name": "Edge", "brief": "k >= len(s) means whole string, all same chars already"},
+            ],
+        },
+        # ── PATTERN 4: FAST & SLOW POINTERS ──────────────────────────────────
+        {
+            "id": "fs-linked-list-cycle-ii",
+            "name": "Linked List Cycle II",
+            "brief": "LC #142 [Medium] — Floyd's + reset to head",
+            "category": "Fast & Slow Pointers",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "fs-142-python", "name": "Python", "brief": "Floyd's algorithm, after meet reset one pointer to head"},
+                {"id": "fs-142-real", "name": "Real-World", "brief": "Deadlock detection in OS (resource allocation graph cycle)"},
+                {"id": "fs-142-remember", "name": "Remember", "brief": "After meeting, distance from head to cycle start = distance from meet to cycle start"},
+                {"id": "fs-142-edge", "name": "Edge", "brief": "No cycle, cycle at head, single node self-loop"},
+            ],
+        },
+        {
+            "id": "fs-find-duplicate",
+            "name": "Find the Duplicate Number",
+            "brief": "LC #287 [Medium] — array as implicit linked list",
+            "category": "Fast & Slow Pointers",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "fs-287-python", "name": "Python", "brief": "Treat array as linked list, index → value as next pointer"},
+                {"id": "fs-287-real", "name": "Real-World", "brief": "Database integrity check (finding duplicate primary keys)"},
+                {"id": "fs-287-remember", "name": "Remember", "brief": "Floyd's on array without modifying it. nums[0] is entry point (0 is never in range)"},
+                {"id": "fs-287-edge", "name": "Edge", "brief": "Duplicate appears many times, duplicate is at boundary"},
+            ],
+        },
+        {
+            "id": "fs-happy-number",
+            "name": "Happy Number",
+            "brief": "LC #202 [Easy] — cycle detection via fast/slow",
+            "category": "Fast & Slow Pointers",
+            "difficulty": "Easy",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "fs-202-python", "name": "Python", "brief": "Digit sum with divmod() in a loop, or set for cycle detection"},
+                {"id": "fs-202-real", "name": "Real-World", "brief": "Hashing collision detection (cycle in hash chains)"},
+                {"id": "fs-202-remember", "name": "Remember", "brief": "Sum of squares either reaches 1 or enters a cycle. Fast/slow or HashSet both work"},
+                {"id": "fs-202-edge", "name": "Edge", "brief": "Single digit numbers, very large numbers converge quickly"},
+            ],
+        },
+        {
+            "id": "fs-middle-linked-list",
+            "name": "Middle of the Linked List",
+            "brief": "LC #876 [Easy] — slow/fast pointer split",
+            "category": "Fast & Slow Pointers",
+            "difficulty": "Easy",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "fs-876-python", "name": "Python", "brief": "slow = slow.next, fast = fast.next.next"},
+                {"id": "fs-876-real", "name": "Real-World", "brief": "Load balancer (split request queue in half for two workers)"},
+                {"id": "fs-876-remember", "name": "Remember", "brief": "For even length, this gives second middle. Check fast AND fast.next"},
+                {"id": "fs-876-edge", "name": "Edge", "brief": "Single node, two nodes, odd vs even length"},
+            ],
+        },
+        # ── PATTERN 5: HASHMAP & FREQUENCY COUNTING ───────────────────────────
+        {
+            "id": "hm-top-k-frequent",
+            "name": "Top K Frequent Elements",
+            "brief": "LC #347 [Medium] — bucket sort O(n)",
+            "category": "Hashmap & Frequency Counting",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "hm-347-python", "name": "Python", "brief": "Counter.most_common(k) one-liner, or bucket sort O(n)"},
+                {"id": "hm-347-real", "name": "Real-World", "brief": "Trending topics, top search queries, most active users"},
+                {"id": "hm-347-remember", "name": "Remember", "brief": "Bucket sort beats heap: index = frequency, value = list of elements. O(n) vs O(n log k)"},
+                {"id": "hm-347-edge", "name": "Edge", "brief": "All same frequency, k equals unique elements, single element"},
+            ],
+        },
+        {
+            "id": "hm-group-anagrams",
+            "name": "Group Anagrams",
+            "brief": "LC #49 [Medium] — sorted-tuple key",
+            "category": "Hashmap & Frequency Counting",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "hm-49-python", "name": "Python", "brief": "defaultdict(list) with tuple(sorted(word)) as key, or letter count tuple"},
+                {"id": "hm-49-real", "name": "Real-World", "brief": "Plagiarism detection, search engine query clustering"},
+                {"id": "hm-49-remember", "name": "Remember", "brief": "sorted() key is O(k log k). Count-based tuple key is O(k) but 26-length fixed"},
+                {"id": "hm-49-edge", "name": "Edge", "brief": "Empty strings group together, single char words, all same word"},
+            ],
+        },
+        {
+            "id": "hm-longest-consecutive",
+            "name": "Longest Consecutive Sequence",
+            "brief": "LC #128 [Medium] — set + start-of-sequence trick",
+            "category": "Hashmap & Frequency Counting",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "hm-128-python", "name": "Python", "brief": "set() for O(1) lookup, only start counting from sequence START"},
+                {"id": "hm-128-real", "name": "Real-World", "brief": "Gap analysis in time-series data, finding continuous uptime stretches"},
+                {"id": "hm-128-remember", "name": "Remember", "brief": "Only process if (num - 1) NOT in set. This makes it O(n) not O(n²)"},
+                {"id": "hm-128-edge", "name": "Edge", "brief": "Duplicates (set handles), empty array, all same number"},
+            ],
+        },
+        {
+            "id": "hm-two-sum",
+            "name": "Two Sum",
+            "brief": "LC #1 [Easy] — complement dict single pass",
+            "category": "Hashmap & Frequency Counting",
+            "difficulty": "Easy",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "hm-1-python", "name": "Python", "brief": "dict for complement lookup in single pass"},
+                {"id": "hm-1-real", "name": "Real-World", "brief": "Payment matching (find two transactions that sum to a target refund)"},
+                {"id": "hm-1-remember", "name": "Remember", "brief": "Store {value: index}. Check complement BEFORE inserting (avoids using same element twice)"},
+                {"id": "hm-1-edge", "name": "Edge", "brief": "Same element can't be used twice, negative numbers, exactly two solutions"},
+            ],
+        },
+        # ── PATTERN 6: MONOTONIC STACK ────────────────────────────────────────
+        {
+            "id": "ms-daily-temperatures",
+            "name": "Daily Temperatures",
+            "brief": "LC #739 [Medium] — monotonic decreasing stack of indices",
+            "category": "Monotonic Stack",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "ms-739-python", "name": "Python", "brief": "stack stores indices, pop when current > stack top"},
+                {"id": "ms-739-real", "name": "Real-World", "brief": "Weather forecasting (days until warmer), stock price alerts"},
+                {"id": "ms-739-remember", "name": "Remember", "brief": "Stack holds INDICES of decreasing temps. answer[popped] = i - popped"},
+                {"id": "ms-739-edge", "name": "Edge", "brief": "Monotonically increasing (empty result), monotonically decreasing (all zeros)"},
+            ],
+        },
+        {
+            "id": "ms-largest-rectangle-histogram",
+            "name": "Largest Rectangle in Histogram",
+            "brief": "LC #84 [Hard] — stack with sentinel -1",
+            "category": "Monotonic Stack",
+            "difficulty": "Hard",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "ms-84-python", "name": "Python", "brief": "Stack of indices, calculate width on pop: i - stack[-1] - 1"},
+                {"id": "ms-84-real", "name": "Real-World", "brief": "Maximum rectangular plot in uneven terrain, UI layout calculation"},
+                {"id": "ms-84-remember", "name": "Remember", "brief": "Push -1 as sentinel. Width = i - stack[-1] - 1 (not i - popped)"},
+                {"id": "ms-84-edge", "name": "Edge", "brief": "All same height, single bar, ascending order, descending order"},
+            ],
+        },
+        {
+            "id": "ms-next-greater-element",
+            "name": "Next Greater Element I",
+            "brief": "LC #496 [Easy] — stack + hashmap",
+            "category": "Monotonic Stack",
+            "difficulty": "Easy",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "ms-496-python", "name": "Python", "brief": "Stack + HashMap to store next-greater mapping"},
+                {"id": "ms-496-real", "name": "Real-World", "brief": "Stock next peak prediction, DNS resolution chain"},
+                {"id": "ms-496-remember", "name": "Remember", "brief": "Process nums2 with stack, build map. Then look up each nums1 element"},
+                {"id": "ms-496-edge", "name": "Edge", "brief": "No greater element exists (return -1), last element always -1"},
+            ],
+        },
+        {
+            "id": "ms-online-stock-span",
+            "name": "Online Stock Span",
+            "brief": "LC #901 [Medium] — (price, span) tuple stack",
+            "category": "Monotonic Stack",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "ms-901-python", "name": "Python", "brief": "Stack of (price, span) tuples, accumulate span on pop"},
+                {"id": "ms-901-real", "name": "Real-World", "brief": "Literal stock span calculation, consecutive performance metrics"},
+                {"id": "ms-901-remember", "name": "Remember", "brief": "Pop all smaller/equal prices, ADD their spans to current. Stack stores cumulative info"},
+                {"id": "ms-901-edge", "name": "Edge", "brief": "Monotonically increasing prices (span always 1), all same price"},
+            ],
+        },
+        # ── PATTERN 7: BINARY SEARCH (ON ANSWER) ─────────────────────────────
+        {
+            "id": "bs-koko-bananas",
+            "name": "Koko Eating Bananas",
+            "brief": "LC #875 [Medium] — binary search on answer space",
+            "category": "Binary Search (On Answer)",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "bs-875-python", "name": "Python", "brief": "bisect-style on answer space, math.ceil(pile/speed) for hours calc"},
+                {"id": "bs-875-real", "name": "Real-World", "brief": "Resource allocation (minimum server capacity to process jobs in time)"},
+                {"id": "bs-875-remember", "name": "Remember", "brief": "Search space is [1, max(piles)]. Binary search on the ANSWER, not the array"},
+                {"id": "bs-875-edge", "name": "Edge", "brief": "h == len(piles) means answer is max(piles), single pile"},
+            ],
+        },
+        {
+            "id": "bs-search-rotated-array",
+            "name": "Search in Rotated Sorted Array",
+            "brief": "LC #33 [Medium] — identify sorted half first",
+            "category": "Binary Search (On Answer)",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "bs-33-python", "name": "Python", "brief": "Identify which half is sorted, then decide direction"},
+                {"id": "bs-33-real", "name": "Real-World", "brief": "Searching in circular buffers, log rotation search"},
+                {"id": "bs-33-remember", "name": "Remember", "brief": "One half is ALWAYS sorted. Check if target is in sorted half, else go other way"},
+                {"id": "bs-33-edge", "name": "Edge", "brief": "No rotation, single element, target not present, rotation at start/end"},
+            ],
+        },
+        {
+            "id": "bs-find-min-rotated",
+            "name": "Find Minimum in Rotated Sorted Array",
+            "brief": "LC #153 [Medium] — compare mid with right",
+            "category": "Binary Search (On Answer)",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "bs-153-python", "name": "Python", "brief": "Compare mid with right (not left!) to decide direction"},
+                {"id": "bs-153-real", "name": "Real-World", "brief": "Finding reset point in circular time-series data"},
+                {"id": "bs-153-remember", "name": "Remember", "brief": "If nums[mid] > nums[right], min is in right half. Compare with RIGHT always"},
+                {"id": "bs-153-edge", "name": "Edge", "brief": "Not rotated (first element), single element, two elements"},
+            ],
+        },
+        {
+            "id": "bs-median-two-arrays",
+            "name": "Median of Two Sorted Arrays",
+            "brief": "LC #4 [Hard] — binary search on shorter array partition",
+            "category": "Binary Search (On Answer)",
+            "difficulty": "Hard",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "bs-4-python", "name": "Python", "brief": "Binary search on shorter array, partition both arrays"},
+                {"id": "bs-4-real", "name": "Real-World", "brief": "Database merge-sort optimization, distributed percentile computation"},
+                {"id": "bs-4-remember", "name": "Remember", "brief": "Binary search on SHORTER array. Partition so left_total = (m+n+1)//2. Check cross-boundaries"},
+                {"id": "bs-4-edge", "name": "Edge", "brief": "One empty array, arrays of very different sizes, all elements same"},
+            ],
+        },
+        # ── PATTERN 8: BACKTRACKING ───────────────────────────────────────────
+        {
+            "id": "bt-combination-sum",
+            "name": "Combination Sum",
+            "brief": "LC #39 [Medium] — recursive with reuse allowed",
+            "category": "Backtracking",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "bt-39-python", "name": "Python", "brief": "Recursive with start index, append/pop pattern, allow reuse (i not i+1)"},
+                {"id": "bt-39-real", "name": "Real-World", "brief": "Budget allocation (find all ways to spend exact budget on items)"},
+                {"id": "bt-39-remember", "name": "Remember", "brief": "Pass same index i (reuse allowed). Sort to enable early termination when sum > target"},
+                {"id": "bt-39-edge", "name": "Edge", "brief": "Single element equals target, no valid combination, very deep recursion"},
+            ],
+        },
+        {
+            "id": "bt-word-search",
+            "name": "Word Search",
+            "brief": "LC #79 [Medium] — DFS with in-place mark/restore",
+            "category": "Backtracking",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "bt-79-python", "name": "Python", "brief": "DFS with in-place marking (board[r][c] = '#'), restore after"},
+                {"id": "bt-79-real", "name": "Real-World", "brief": "Pattern matching in grids (crossword solvers, OCR character path detection)"},
+                {"id": "bt-79-remember", "name": "Remember", "brief": "Mark visited IN-PLACE to save space. Restore on backtrack. Check bounds first"},
+                {"id": "bt-79-edge", "name": "Edge", "brief": "Single char word, word longer than board cells, all same chars in board"},
+            ],
+        },
+        {
+            "id": "bt-n-queens",
+            "name": "N-Queens",
+            "brief": "LC #51 [Hard] — sets for cols, diagonals, anti-diagonals",
+            "category": "Backtracking",
+            "difficulty": "Hard",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "bt-51-python", "name": "Python", "brief": "Sets for columns, diagonals (row-col), anti-diagonals (row+col)"},
+                {"id": "bt-51-real", "name": "Real-World", "brief": "Constraint satisfaction (scheduling, resource allocation without conflicts)"},
+                {"id": "bt-51-remember", "name": "Remember", "brief": "Diagonal identity: row-col is constant. Anti-diagonal: row+col is constant. Sets for O(1) check"},
+                {"id": "bt-51-edge", "name": "Edge", "brief": "n=1 (trivial), n=2,3 (no solution), n=4 (two solutions)"},
+            ],
+        },
+        {
+            "id": "bt-palindrome-partitioning",
+            "name": "Palindrome Partitioning",
+            "brief": "LC #131 [Medium] — backtrack + DP palindrome check",
+            "category": "Backtracking",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "bt-131-python", "name": "Python", "brief": "Backtrack with s[start:i+1] slicing, isPalindrome check"},
+                {"id": "bt-131-real", "name": "Real-World", "brief": "Text segmentation (NLP word boundary detection with constraints)"},
+                {"id": "bt-131-remember", "name": "Remember", "brief": "For each position, try all possible palindrome prefixes. Memoize palindrome checks with DP table"},
+                {"id": "bt-131-edge", "name": "Edge", "brief": "All same chars (many partitions), no palindrome substring longer than 1"},
+            ],
+        },
+        # ── PATTERN 9: BFS / DFS ON GRAPHS ───────────────────────────────────
+        {
+            "id": "gr-number-of-islands",
+            "name": "Number of Islands",
+            "brief": "LC #200 [Medium] — DFS sinking / BFS deque",
+            "category": "BFS / DFS on Graphs",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "gr-200-python", "name": "Python", "brief": "DFS with in-place sinking (grid[r][c] = '0'), or BFS with deque"},
+                {"id": "gr-200-real", "name": "Real-World", "brief": "Image blob detection, connected component analysis in maps"},
+                {"id": "gr-200-remember", "name": "Remember", "brief": "Sink visited land to avoid visited set. Iterate full grid, count DFS triggers"},
+                {"id": "gr-200-edge", "name": "Edge", "brief": "All water, all land (one island), diagonal doesn't count"},
+            ],
+        },
+        {
+            "id": "gr-course-schedule",
+            "name": "Course Schedule",
+            "brief": "LC #207 [Medium] — 3-state DFS cycle detection",
+            "category": "BFS / DFS on Graphs",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "gr-207-python", "name": "Python", "brief": "defaultdict(list) for adjacency, DFS with 3-state coloring (unvisited, in-progress, done)"},
+                {"id": "gr-207-real", "name": "Real-World", "brief": "Build system dependency resolution (make, gradle), package managers"},
+                {"id": "gr-207-remember", "name": "Remember", "brief": "Cycle detection = impossible. Three states prevent revisiting done nodes. Kahn's BFS also works"},
+                {"id": "gr-207-edge", "name": "Edge", "brief": "No prerequisites (always possible), self-loop, disconnected graph"},
+            ],
+        },
+        {
+            "id": "gr-word-ladder",
+            "name": "Word Ladder",
+            "brief": "LC #127 [Hard] — BFS shortest path with wildcard neighbors",
+            "category": "BFS / DFS on Graphs",
+            "difficulty": "Hard",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "gr-127-python", "name": "Python", "brief": "BFS with deque, generate neighbors by replacing each char with a-z"},
+                {"id": "gr-127-real", "name": "Real-World", "brief": "Spell-checker suggestion chains, gene mutation paths"},
+                {"id": "gr-127-remember", "name": "Remember", "brief": "BFS guarantees shortest path. Use wildcard pattern dict for O(26*L) neighbor gen"},
+                {"id": "gr-127-edge", "name": "Edge", "brief": "No transformation possible (return 0), endWord not in list, very long words"},
+            ],
+        },
+        {
+            "id": "gr-clone-graph",
+            "name": "Clone Graph",
+            "brief": "LC #133 [Medium] — DFS with old→new hashmap",
+            "category": "BFS / DFS on Graphs",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "gr-133-python", "name": "Python", "brief": "dict {original: clone} as visited map, DFS/BFS cloning"},
+                {"id": "gr-133-real", "name": "Real-World", "brief": "Deep copy of object graphs, database record duplication with references"},
+                {"id": "gr-133-remember", "name": "Remember", "brief": "HashMap maps old→new node. Clone node FIRST, then recurse neighbors. Handles cycles naturally"},
+                {"id": "gr-133-edge", "name": "Edge", "brief": "Empty graph, single node with self-loop, fully connected graph"},
+            ],
+        },
+        # ── PATTERN 10: TREE TRAVERSAL & DFS ─────────────────────────────────
+        {
+            "id": "tr-level-order-traversal",
+            "name": "Binary Tree Level Order Traversal",
+            "brief": "LC #102 [Medium] — BFS with level snapshot",
+            "category": "Tree Traversal & DFS",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "tr-102-python", "name": "Python", "brief": "deque BFS, process level_size = len(queue) nodes per iteration"},
+                {"id": "tr-102-real", "name": "Real-World", "brief": "Org chart level display, DOM rendering layer by layer, BFS in social networks"},
+                {"id": "tr-102-remember", "name": "Remember", "brief": "Key trick is snapshot len(queue) at start of each level. Append children during iteration"},
+                {"id": "tr-102-edge", "name": "Edge", "brief": "Empty tree, single node, skewed tree (one node per level)"},
+            ],
+        },
+        {
+            "id": "tr-validate-bst",
+            "name": "Validate Binary Search Tree",
+            "brief": "LC #98 [Medium] — recursive bounds (low, high)",
+            "category": "Tree Traversal & DFS",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "tr-98-python", "name": "Python", "brief": "Recursive with (low, high) bounds, or inorder should be strictly increasing"},
+                {"id": "tr-98-real", "name": "Real-World", "brief": "Database index validation, ensuring B-tree property holds after mutations"},
+                {"id": "tr-98-remember", "name": "Remember", "brief": "Pass bounds down: left child gets (low, node.val), right gets (node.val, high). Use float('-inf'), float('inf')"},
+                {"id": "tr-98-edge", "name": "Edge", "brief": "Equal values (strictly less, not <=), single node, Integer.MIN/MAX as values"},
+            ],
+        },
+        {
+            "id": "tr-serialize-deserialize",
+            "name": "Serialize and Deserialize Binary Tree",
+            "brief": "LC #297 [Hard] — preorder with null markers",
+            "category": "Tree Traversal & DFS",
+            "difficulty": "Hard",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "tr-297-python", "name": "Python", "brief": "Preorder with 'null' markers, deque for deserialization (popleft)"},
+                {"id": "tr-297-real", "name": "Real-World", "brief": "Saving tree state to disk/network (JSON tree structure, AST serialization)"},
+                {"id": "tr-297-remember", "name": "Remember", "brief": "Preorder + null markers = unique tree. Use deque.popleft() for O(1) consumption during deserialize"},
+                {"id": "tr-297-edge", "name": "Edge", "brief": "Empty tree, all left children (skewed), complete binary tree"},
+            ],
+        },
+        {
+            "id": "tr-lowest-common-ancestor",
+            "name": "Lowest Common Ancestor",
+            "brief": "LC #236 [Medium] — bubble up from both sides",
+            "category": "Tree Traversal & DFS",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "tr-236-python", "name": "Python", "brief": "Recursive, return node if found, bubble up from both sides"},
+                {"id": "tr-236-real", "name": "Real-World", "brief": "Version control merge-base (git merge-base), taxonomy classification"},
+                {"id": "tr-236-remember", "name": "Remember", "brief": "If left and right both return non-null, current node is LCA. If one is null, return the other"},
+                {"id": "tr-236-edge", "name": "Edge", "brief": "One node is ancestor of other, both nodes same, root is one of the nodes"},
+            ],
+        },
+        # ── PATTERN 11: HEAP / PRIORITY QUEUE ────────────────────────────────
+        {
+            "id": "hp-merge-k-sorted-lists",
+            "name": "Merge K Sorted Lists",
+            "brief": "LC #23 [Hard] — heapq with tie-breaker index",
+            "category": "Heap / Priority Queue",
+            "difficulty": "Hard",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "hp-23-python", "name": "Python", "brief": "heapq with (val, index, node) tuples (index breaks ties since ListNode isn't comparable)"},
+                {"id": "hp-23-real", "name": "Real-World", "brief": "Database merge-sort join, merging sorted log files from multiple servers"},
+                {"id": "hp-23-remember", "name": "Remember", "brief": "Push first element of each list. Pop min, push next from same list. Tie-breaker index needed"},
+                {"id": "hp-23-edge", "name": "Edge", "brief": "Empty lists in input, single list, all lists have one element"},
+            ],
+        },
+        {
+            "id": "hp-median-data-stream",
+            "name": "Find Median from Data Stream",
+            "brief": "LC #295 [Hard] — two heaps (max-left + min-right)",
+            "category": "Heap / Priority Queue",
+            "difficulty": "Hard",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "hp-295-python", "name": "Python", "brief": "Two heaps: max-heap (negate for Python) for left, min-heap for right"},
+                {"id": "hp-295-real", "name": "Real-World", "brief": "Real-time percentile monitoring, streaming analytics dashboards"},
+                {"id": "hp-295-remember", "name": "Remember", "brief": "Balance: len(left) == len(right) or len(left) == len(right)+1. Always push to left first"},
+                {"id": "hp-295-edge", "name": "Edge", "brief": "Single element, two elements, all same values, alternating large/small"},
+            ],
+        },
+        {
+            "id": "hp-task-scheduler",
+            "name": "Task Scheduler",
+            "brief": "LC #621 [Medium] — max-heap + cooldown queue",
+            "category": "Heap / Priority Queue",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "hp-621-python", "name": "Python", "brief": "Counter + max-heap (negate), track cooldown with queue of (time_available, count)"},
+                {"id": "hp-621-real", "name": "Real-World", "brief": "CPU task scheduling, rate-limited API call batching"},
+                {"id": "hp-621-remember", "name": "Remember", "brief": "Most frequent task determines idle slots. Formula: (max_freq-1) * (n+1) + count_of_max_freq tasks"},
+                {"id": "hp-621-edge", "name": "Edge", "brief": "n=0 (no cooldown), all same task, many tasks with same frequency"},
+            ],
+        },
+        {
+            "id": "hp-kth-largest",
+            "name": "Kth Largest Element in an Array",
+            "brief": "LC #215 [Medium] — min-heap of size k / quickselect",
+            "category": "Heap / Priority Queue",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "hp-215-python", "name": "Python", "brief": "heapq.nlargest(k, nums)[-1], or min-heap of size k, or quickselect"},
+                {"id": "hp-215-real", "name": "Real-World", "brief": "Top-K leaderboard, finding percentile cutoffs in real-time"},
+                {"id": "hp-215-remember", "name": "Remember", "brief": "Min-heap of size k: push all, pop when size > k. Top of heap = kth largest. O(n log k)"},
+                {"id": "hp-215-edge", "name": "Edge", "brief": "k=1 (max), k=n (min), duplicates in array, all same elements"},
+            ],
+        },
+        # ── PATTERN 12: DYNAMIC PROGRAMMING (1D) ─────────────────────────────
+        {
+            "id": "dp1-house-robber",
+            "name": "House Robber",
+            "brief": "LC #198 [Medium] — dp[i] = max(dp[i-1], dp[i-2]+nums[i])",
+            "category": "Dynamic Programming (1D)",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "dp1-198-python", "name": "Python", "brief": "dp[i] = max(dp[i-1], dp[i-2] + nums[i]), space-optimize to two vars"},
+                {"id": "dp1-198-real", "name": "Real-World", "brief": "Resource selection with exclusion constraints, ad placement with spacing rules"},
+                {"id": "dp1-198-remember", "name": "Remember", "brief": "Choice at each step: skip or take+skip_previous. Two variables (prev1, prev2) replace array"},
+                {"id": "dp1-198-edge", "name": "Edge", "brief": "Single house, two houses, all same values, alternating high/low"},
+            ],
+        },
+        {
+            "id": "dp1-lis",
+            "name": "Longest Increasing Subsequence",
+            "brief": "LC #300 [Medium] — bisect_left on tails array O(n log n)",
+            "category": "Dynamic Programming (1D)",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "dp1-300-python", "name": "Python", "brief": "bisect.bisect_left on tails array for O(n log n), or dp[i] = LIS ending at i"},
+                {"id": "dp1-300-real", "name": "Real-World", "brief": "Stock trend analysis (longest uptrend), version dependency resolution"},
+                {"id": "dp1-300-remember", "name": "Remember", "brief": "Patience sorting: maintain smallest tail for each length. bisect_left finds insertion point"},
+                {"id": "dp1-300-edge", "name": "Edge", "brief": "Strictly increasing (LIS = n), strictly decreasing (LIS = 1), all equal"},
+            ],
+        },
+        {
+            "id": "dp1-coin-change",
+            "name": "Coin Change",
+            "brief": "LC #322 [Medium] — bottom-up dp[i] = min coins",
+            "category": "Dynamic Programming (1D)",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "dp1-322-python", "name": "Python", "brief": "dp = [float('inf')] * (amount+1), dp[0] = 0, iterate coins for each amount"},
+                {"id": "dp1-322-real", "name": "Real-World", "brief": "Making change (literally), minimum resource allocation, minimum API calls"},
+                {"id": "dp1-322-remember", "name": "Remember", "brief": "Bottom-up: dp[i] = min(dp[i], dp[i-coin]+1) for all coins. Check dp[amount] != inf"},
+                {"id": "dp1-322-edge", "name": "Edge", "brief": "Amount 0 (return 0), impossible (return -1), single coin, amount < smallest coin"},
+            ],
+        },
+        {
+            "id": "dp1-decode-ways",
+            "name": "Decode Ways",
+            "brief": "LC #91 [Medium] — dp depends on 1-digit & 2-digit",
+            "category": "Dynamic Programming (1D)",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "dp1-91-python", "name": "Python", "brief": "dp[i] depends on single digit (1-9) and double digit (10-26)"},
+                {"id": "dp1-91-real", "name": "Real-World", "brief": "Text encoding/decoding ambiguity, parser state machines"},
+                {"id": "dp1-91-remember", "name": "Remember", "brief": "'0' alone is invalid. Leading zeros kill paths. Check both s[i] and s[i-1:i+1]"},
+                {"id": "dp1-91-edge", "name": "Edge", "brief": "Leading zero '0...', '10' vs '01', consecutive zeros, '00'"},
+            ],
+        },
+        # ── PATTERN 13: DYNAMIC PROGRAMMING (2D) ─────────────────────────────
+        {
+            "id": "dp2-lcs",
+            "name": "Longest Common Subsequence",
+            "brief": "LC #1143 [Medium] — 2D dp, space-optimized to two rows",
+            "category": "Dynamic Programming (2D)",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "dp2-1143-python", "name": "Python", "brief": "2D dp, space-optimize to two rows. dp[i][j] = dp[i-1][j-1]+1 if match"},
+                {"id": "dp2-1143-real", "name": "Real-World", "brief": "Diff tools (git diff), DNA sequence alignment, spell-check suggestions"},
+                {"id": "dp2-1143-remember", "name": "Remember", "brief": "Match → diagonal+1. No match → max(left, top). Space optimization: only need previous row"},
+                {"id": "dp2-1143-edge", "name": "Edge", "brief": "No common chars (LCS=0), one is substring of other, identical strings"},
+            ],
+        },
+        {
+            "id": "dp2-edit-distance",
+            "name": "Edit Distance",
+            "brief": "LC #72 [Hard] — insert / delete / replace DP",
+            "category": "Dynamic Programming (2D)",
+            "difficulty": "Hard",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "dp2-72-python", "name": "Python", "brief": "dp[i][j] = operations to convert word1[:i] to word2[:j]. Three choices: insert, delete, replace"},
+                {"id": "dp2-72-real", "name": "Real-World", "brief": "Spell checker ranking, DNA mutation distance, fuzzy string matching"},
+                {"id": "dp2-72-remember", "name": "Remember", "brief": "Match = dp[i-1][j-1]. Else: 1 + min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]). Base cases = indices"},
+                {"id": "dp2-72-edge", "name": "Edge", "brief": "One empty string (answer = len of other), identical strings (0), completely different"},
+            ],
+        },
+        {
+            "id": "dp2-unique-paths",
+            "name": "Unique Paths",
+            "brief": "LC #62 [Medium] — dp or math.comb one-liner",
+            "category": "Dynamic Programming (2D)",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "dp2-62-python", "name": "Python", "brief": "dp[i][j] = dp[i-1][j] + dp[i][j-1], or math.comb(m+n-2, m-1) one-liner"},
+                {"id": "dp2-62-real", "name": "Real-World", "brief": "Robot navigation, grid-based routing, network packet path counting"},
+                {"id": "dp2-62-remember", "name": "Remember", "brief": "Combinatorics shortcut: C(m+n-2, m-1). DP if obstacles exist (LC #63)"},
+                {"id": "dp2-62-edge", "name": "Edge", "brief": "1xn or mx1 grid (only one path), large grids (overflow in some languages, not Python)"},
+            ],
+        },
+        {
+            "id": "dp2-burst-balloons",
+            "name": "Burst Balloons",
+            "brief": "LC #312 [Hard] — interval DP, think LAST balloon to burst",
+            "category": "Dynamic Programming (2D)",
+            "difficulty": "Hard",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "dp2-312-python", "name": "Python", "brief": "Interval DP. dp[l][r] = max coins from bursting all balloons between l and r"},
+                {"id": "dp2-312-real", "name": "Real-World", "brief": "Optimal job sequencing with neighbor-dependent rewards, game theory"},
+                {"id": "dp2-312-remember", "name": "Remember", "brief": "Think of LAST balloon to burst in range (not first). Multiply with boundaries nums[l-1]*nums[k]*nums[r+1]"},
+                {"id": "dp2-312-edge", "name": "Edge", "brief": "Single balloon, two balloons, padding with 1s at boundaries"},
+            ],
+        },
+        # ── PATTERN 14: GREEDY ────────────────────────────────────────────────
+        {
+            "id": "gr2-jump-game",
+            "name": "Jump Game",
+            "brief": "LC #55 [Medium] — track farthest reachable index",
+            "category": "Greedy",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "gr2-55-python", "name": "Python", "brief": "Track farthest reachable index, iterate and update"},
+                {"id": "gr2-55-real", "name": "Real-World", "brief": "Network hop analysis (can packet reach destination?), game level feasibility"},
+                {"id": "gr2-55-remember", "name": "Remember", "brief": "At each index, farthest = max(farthest, i + nums[i]). If i > farthest, unreachable"},
+                {"id": "gr2-55-edge", "name": "Edge", "brief": "Single element (always true), first element is 0 (false unless n=1), all 1s"},
+            ],
+        },
+        {
+            "id": "gr2-partition-labels",
+            "name": "Partition Labels",
+            "brief": "LC #763 [Medium] — last-occurrence greedy expansion",
+            "category": "Greedy",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "gr2-763-python", "name": "Python", "brief": "dict for last occurrence of each char, expand partition end greedily"},
+                {"id": "gr2-763-real", "name": "Real-World", "brief": "Log file splitting (ensure each log type stays in one partition), data sharding"},
+                {"id": "gr2-763-remember", "name": "Remember", "brief": "Track last occurrence of every char. Expand current partition end to max(end, last[char])"},
+                {"id": "gr2-763-edge", "name": "Edge", "brief": "All unique chars (each is own partition), single char repeated (one partition)"},
+            ],
+        },
+        {
+            "id": "gr2-gas-station",
+            "name": "Gas Station",
+            "brief": "LC #134 [Medium] — reset start on deficit, total >= 0 = solvable",
+            "category": "Greedy",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "gr2-134-python", "name": "Python", "brief": "If total gas >= total cost, solution exists. Track running surplus, reset start on deficit"},
+                {"id": "gr2-134-real", "name": "Real-World", "brief": "Vehicle routing with refueling, circular delivery optimization"},
+                {"id": "gr2-134-remember", "name": "Remember", "brief": "If total >= 0, answer exists and is UNIQUE. Reset start when tank goes negative"},
+                {"id": "gr2-134-edge", "name": "Edge", "brief": "All stations same gas/cost, only one valid start, impossible (total < 0)"},
+            ],
+        },
+        {
+            "id": "gr2-meeting-rooms-ii",
+            "name": "Meeting Rooms II",
+            "brief": "LC #253 [Medium] — sorted start/end two-pointer or heap",
+            "category": "Greedy",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "gr2-253-python", "name": "Python", "brief": "Sort starts and ends separately, two-pointer to count overlaps. Or heapq for end times"},
+                {"id": "gr2-253-real", "name": "Real-World", "brief": "Conference room scheduling, server connection pool sizing, parallel job slots"},
+                {"id": "gr2-253-remember", "name": "Remember", "brief": "Sort start[] and end[] separately. If start[i] < end[j], need new room. Else reuse (j++)"},
+                {"id": "gr2-253-edge", "name": "Edge", "brief": "No overlaps (1 room), all overlap (n rooms), meetings with zero duration"},
+            ],
+        },
+        # ── PATTERN 15: INTERVALS ─────────────────────────────────────────────
+        {
+            "id": "iv-merge-intervals",
+            "name": "Merge Intervals",
+            "brief": "LC #56 [Medium] — sort by start, merge on overlap",
+            "category": "Intervals",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "iv-56-python", "name": "Python", "brief": "Sort by start, compare current.start with last_merged.end"},
+                {"id": "iv-56-real", "name": "Real-World", "brief": "Calendar merge (free/busy), IP range consolidation, time-series compression"},
+                {"id": "iv-56-remember", "name": "Remember", "brief": "Sort by start. If overlap: merged[-1][1] = max(merged[-1][1], current[1]). Else append"},
+                {"id": "iv-56-edge", "name": "Edge", "brief": "Single interval, all overlapping (merge to one), already sorted, touching boundaries [1,2][2,3]"},
+            ],
+        },
+        {
+            "id": "iv-non-overlapping-intervals",
+            "name": "Non-Overlapping Intervals",
+            "brief": "LC #435 [Medium] — sort by END time, count removals",
+            "category": "Intervals",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "iv-435-python", "name": "Python", "brief": "Sort by END time (greedy), count conflicts"},
+                {"id": "iv-435-real", "name": "Real-World", "brief": "Job scheduling (maximize non-conflicting jobs), TV show recording conflicts"},
+                {"id": "iv-435-remember", "name": "Remember", "brief": "Sort by END (not start!). Greedy: keep interval that ends earliest. Count removals"},
+                {"id": "iv-435-edge", "name": "Edge", "brief": "No overlaps (remove 0), all same interval (remove n-1), nested intervals"},
+            ],
+        },
+        {
+            "id": "iv-insert-interval",
+            "name": "Insert Interval",
+            "brief": "LC #57 [Medium] — three-phase: before / merge / after",
+            "category": "Intervals",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "iv-57-python", "name": "Python", "brief": "Three phases: before (end < new_start), merge (overlap), after (start > new_end)"},
+                {"id": "iv-57-real", "name": "Real-World", "brief": "Calendar event insertion, range-based access control updates"},
+                {"id": "iv-57-remember", "name": "Remember", "brief": "Collect all non-overlapping before, merge all overlapping, collect all after. Clean 3-pass logic"},
+                {"id": "iv-57-edge", "name": "Edge", "brief": "Insert at beginning, insert at end, new interval covers all existing"},
+            ],
+        },
+        {
+            "id": "iv-car-pooling",
+            "name": "Car Pooling",
+            "brief": "LC #1094 [Medium] — difference array / sweep line",
+            "category": "Intervals",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "iv-1094-python", "name": "Python", "brief": "Difference array / sweep line. Mark +passengers at start, -passengers at end"},
+                {"id": "iv-1094-real", "name": "Real-World", "brief": "Literal carpooling, elevator capacity, bandwidth allocation over time"},
+                {"id": "iv-1094-remember", "name": "Remember", "brief": "Sweep line: at each point sum active passengers. array[start] += p, array[end] -= p"},
+                {"id": "iv-1094-edge", "name": "Edge", "brief": "All same pickup/drop, capacity exactly met, trips are sorted vs unsorted"},
+            ],
+        },
+        # ── PATTERN 16: TRIE (PREFIX TREE) ───────────────────────────────────
+        {
+            "id": "ti-implement-trie",
+            "name": "Implement Trie",
+            "brief": "LC #208 [Medium] — TrieNode with children dict + is_end",
+            "category": "Trie (Prefix Tree)",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "ti-208-python", "name": "Python", "brief": "Nested defaultdict or class TrieNode with children dict + is_end flag"},
+                {"id": "ti-208-real", "name": "Real-World", "brief": "Autocomplete engines, spell checkers, IP routing tables (longest prefix match)"},
+                {"id": "ti-208-remember", "name": "Remember", "brief": "Each node has children dict (char → TrieNode) and is_end boolean. Insert/search/startsWith"},
+                {"id": "ti-208-edge", "name": "Edge", "brief": "Empty string insertion, prefix is also a word, single character words"},
+            ],
+        },
+        {
+            "id": "ti-word-search-ii",
+            "name": "Word Search II",
+            "brief": "LC #212 [Hard] — Trie + backtracking with pruning",
+            "category": "Trie (Prefix Tree)",
+            "difficulty": "Hard",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "ti-212-python", "name": "Python", "brief": "Build Trie from words, DFS on board with Trie pruning. Remove word from Trie after found"},
+                {"id": "ti-212-real", "name": "Real-World", "brief": "Multi-keyword search in documents, content moderation (banned word detection)"},
+                {"id": "ti-212-remember", "name": "Remember", "brief": "Trie + backtracking on grid. Prune: delete leaf nodes after finding word. Mark visited in-place"},
+                {"id": "ti-212-edge", "name": "Edge", "brief": "Same word found multiple paths (only add once), overlapping words, board smaller than word"},
+            ],
+        },
+        {
+            "id": "ti-add-search-words",
+            "name": "Design Add and Search Words",
+            "brief": "LC #211 [Medium] — Trie with DFS for '.' wildcard",
+            "category": "Trie (Prefix Tree)",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "ti-211-python", "name": "Python", "brief": "Trie with DFS for '.' wildcard (try all children at that level)"},
+                {"id": "ti-211-real", "name": "Real-World", "brief": "Regex-lite matching, wildcard DNS resolution, pattern-based log search"},
+                {"id": "ti-211-remember", "name": "Remember", "brief": "'.' means branch to ALL children at current level. Recursive DFS for each wildcard position"},
+                {"id": "ti-211-edge", "name": "Edge", "brief": "All dots '...' (match any word of that length), dot at end, no matching word"},
+            ],
+        },
+        {
+            "id": "ti-replace-words",
+            "name": "Replace Words",
+            "brief": "LC #648 [Medium] — Trie shortest-prefix replacement",
+            "category": "Trie (Prefix Tree)",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "ti-648-python", "name": "Python", "brief": "Build Trie from roots, for each word find shortest prefix in Trie"},
+                {"id": "ti-648-real", "name": "Real-World", "brief": "Text summarization (replace long words with abbreviations), stemming in NLP"},
+                {"id": "ti-648-remember", "name": "Remember", "brief": "Walk each word char by char through Trie. First is_end found = shortest root. Replace and stop"},
+                {"id": "ti-648-edge", "name": "Edge", "brief": "Word has no root (keep original), multiple roots match (shortest wins), root equals full word"},
+            ],
+        },
+        # ── PATTERN 17: UNION-FIND ────────────────────────────────────────────
+        {
+            "id": "uf-accounts-merge",
+            "name": "Accounts Merge",
+            "brief": "LC #721 [Medium] — Union-Find on emails",
+            "category": "Union-Find (Disjoint Set)",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "uf-721-python", "name": "Python", "brief": "Union-Find with email → owner mapping, group by root at end"},
+                {"id": "uf-721-real", "name": "Real-World", "brief": "User identity resolution (merge accounts across platforms), entity deduplication"},
+                {"id": "uf-721-remember", "name": "Remember", "brief": "Union emails that share an account. Group all emails by find(root). Sort each group"},
+                {"id": "uf-721-edge", "name": "Edge", "brief": "Same email in multiple accounts, single email accounts, no merging needed"},
+            ],
+        },
+        {
+            "id": "uf-redundant-connection",
+            "name": "Redundant Connection",
+            "brief": "LC #684 [Medium] — first edge where find(u)==find(v)",
+            "category": "Union-Find (Disjoint Set)",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "uf-684-python", "name": "Python", "brief": "Union-Find, first edge where find(u) == find(v) before union is the answer"},
+                {"id": "uf-684-real", "name": "Real-World", "brief": "Network loop detection, removing redundant connections to form spanning tree"},
+                {"id": "uf-684-remember", "name": "Remember", "brief": "Process edges in order. If u and v already connected (same root), this edge creates cycle"},
+                {"id": "uf-684-edge", "name": "Edge", "brief": "Tree with exactly one extra edge (guaranteed), edge at the beginning vs end"},
+            ],
+        },
+        {
+            "id": "uf-connected-components",
+            "name": "Number of Connected Components",
+            "brief": "LC #323 [Medium] — n - successful_unions",
+            "category": "Union-Find (Disjoint Set)",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "uf-323-python", "name": "Python", "brief": "Union-Find with rank, count components = n - successful_unions"},
+                {"id": "uf-323-real", "name": "Real-World", "brief": "Social network clustering, network segmentation analysis"},
+                {"id": "uf-323-remember", "name": "Remember", "brief": "Start with n components. Each successful union reduces by 1. Or: count unique roots at end"},
+                {"id": "uf-323-edge", "name": "Edge", "brief": "Fully connected (1 component), no edges (n components), self-loops"},
+            ],
+        },
+        {
+            "id": "uf-graph-valid-tree",
+            "name": "Graph Valid Tree",
+            "brief": "LC #261 [Medium] — n-1 edges + fully connected",
+            "category": "Union-Find (Disjoint Set)",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "uf-261-python", "name": "Python", "brief": "Valid tree = connected + no cycles = (n-1 edges + all connected via Union-Find)"},
+                {"id": "uf-261-real", "name": "Real-World", "brief": "Validating hierarchy structures, checking acyclic dependency graphs"},
+                {"id": "uf-261-remember", "name": "Remember", "brief": "Tree conditions: exactly n-1 edges AND fully connected. Union-Find detects cycles during edge processing"},
+                {"id": "uf-261-edge", "name": "Edge", "brief": "Empty graph (n=1 is valid), disconnected components, extra edges"},
+            ],
+        },
+        # ── PATTERN 18: BIT MANIPULATION ─────────────────────────────────────
+        {
+            "id": "bm-single-number",
+            "name": "Single Number",
+            "brief": "LC #136 [Easy] — XOR all elements",
+            "category": "Bit Manipulation",
+            "difficulty": "Easy",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "bm-136-python", "name": "Python", "brief": "functools.reduce(operator.xor, nums) one-liner"},
+                {"id": "bm-136-real", "name": "Real-World", "brief": "Error detection (parity bits), finding corrupted packet in duplicate stream"},
+                {"id": "bm-136-remember", "name": "Remember", "brief": "XOR properties: a^a=0, a^0=a, commutative+associative. All pairs cancel out"},
+                {"id": "bm-136-edge", "name": "Edge", "brief": "Single element array, large numbers, negative numbers (XOR still works in Python)"},
+            ],
+        },
+        {
+            "id": "bm-counting-bits",
+            "name": "Counting Bits",
+            "brief": "LC #338 [Easy] — dp[i] = dp[i>>1] + (i&1)",
+            "category": "Bit Manipulation",
+            "difficulty": "Easy",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "bm-338-python", "name": "Python", "brief": "dp[i] = dp[i >> 1] + (i & 1), or dp[i] = dp[i & (i-1)] + 1"},
+                {"id": "bm-338-real", "name": "Real-World", "brief": "Hamming weight tables in networking, population count for SIMD operations"},
+                {"id": "bm-338-remember", "name": "Remember", "brief": "Relationship: i's bit count = (i//2)'s count + last bit. Build table bottom-up O(n)"},
+                {"id": "bm-338-edge", "name": "Edge", "brief": "n=0 (just [0]), powers of 2 (exactly 1 bit), n=1"},
+            ],
+        },
+        {
+            "id": "bm-reverse-bits",
+            "name": "Reverse Bits",
+            "brief": "LC #190 [Easy] — 32-iteration LSB extract & shift",
+            "category": "Bit Manipulation",
+            "difficulty": "Easy",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "bm-190-python", "name": "Python", "brief": "Bit-by-bit: result = (result << 1) | (n & 1); n >>= 1 for 32 iterations"},
+                {"id": "bm-190-real", "name": "Real-World", "brief": "Network byte order conversion (endianness), cryptographic bit permutations"},
+                {"id": "bm-190-remember", "name": "Remember", "brief": "Extract LSB with n&1, shift result left, OR it in. Do exactly 32 times (fixed width)"},
+                {"id": "bm-190-edge", "name": "Edge", "brief": "All zeros, all ones, alternating bits"},
+            ],
+        },
+        {
+            "id": "bm-missing-number",
+            "name": "Missing Number",
+            "brief": "LC #268 [Easy] — XOR or math: n*(n+1)//2 - sum",
+            "category": "Bit Manipulation",
+            "difficulty": "Easy",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "bm-268-python", "name": "Python", "brief": "XOR all indices AND all values, or math: n*(n+1)//2 - sum(nums)"},
+                {"id": "bm-268-real", "name": "Real-World", "brief": "Data integrity check (detect missing packet in sequence), census gap detection"},
+                {"id": "bm-268-remember", "name": "Remember", "brief": "XOR approach: xor(0..n) ^ xor(nums) = missing. Math approach: expected_sum - actual_sum"},
+                {"id": "bm-268-edge", "name": "Edge", "brief": "Missing 0, missing n (last), single element [0] or [1]"},
+            ],
+        },
+        # ── PATTERN 19: LINKED LIST MANIPULATION ─────────────────────────────
+        {
+            "id": "ll-reverse-linked-list",
+            "name": "Reverse Linked List",
+            "brief": "LC #206 [Easy] — iterative prev/curr/next trio",
+            "category": "Linked List Manipulation",
+            "difficulty": "Easy",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "ll-206-python", "name": "Python", "brief": "Iterative with prev/curr/next trio, or recursive (head.next.next = head)"},
+                {"id": "ll-206-real", "name": "Real-World", "brief": "Undo stack implementation, reversing transaction chain"},
+                {"id": "ll-206-remember", "name": "Remember", "brief": "Save next, point curr to prev, advance. Three pointers always. Don't lose reference to next"},
+                {"id": "ll-206-edge", "name": "Edge", "brief": "Empty list, single node, two nodes"},
+            ],
+        },
+        {
+            "id": "ll-lru-cache",
+            "name": "LRU Cache",
+            "brief": "LC #146 [Medium] — OrderedDict or HashMap + doubly linked list",
+            "category": "Linked List Manipulation",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "ll-146-python", "name": "Python", "brief": "collections.OrderedDict with move_to_end(), or HashMap + doubly linked list"},
+                {"id": "ll-146-real", "name": "Real-World", "brief": "Browser cache, database query cache, CPU cache eviction"},
+                {"id": "ll-146-remember", "name": "Remember", "brief": "OrderedDict.move_to_end(key) on get, popitem(last=False) on evict. O(1) everything"},
+                {"id": "ll-146-edge", "name": "Edge", "brief": "Capacity 1, get non-existent key, put existing key (update, don't evict)"},
+            ],
+        },
+        {
+            "id": "ll-merge-two-sorted-lists",
+            "name": "Merge Two Sorted Lists",
+            "brief": "LC #21 [Easy] — dummy head, link smaller, attach remainder",
+            "category": "Linked List Manipulation",
+            "difficulty": "Easy",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "ll-21-python", "name": "Python", "brief": "Dummy head node, compare and link smaller, attach remainder"},
+                {"id": "ll-21-real", "name": "Real-World", "brief": "Merge sort merge step, combining sorted search results from multiple shards"},
+                {"id": "ll-21-remember", "name": "Remember", "brief": "dummy = ListNode(0), tail pointer advances. At end, attach whichever list remains"},
+                {"id": "ll-21-edge", "name": "Edge", "brief": "One empty list, both empty, all elements from one list come first"},
+            ],
+        },
+        {
+            "id": "ll-reorder-list",
+            "name": "Reorder List",
+            "brief": "LC #143 [Medium] — split + reverse second half + interleave",
+            "category": "Linked List Manipulation",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "ll-143-python", "name": "Python", "brief": "Find middle (fast/slow) → reverse second half → merge alternating"},
+                {"id": "ll-143-real", "name": "Real-World", "brief": "Memory-efficient interleaving, playlist shuffle (alternating new/old)"},
+                {"id": "ll-143-remember", "name": "Remember", "brief": "Three steps: (1) split at middle, (2) reverse second half, (3) interleave merge. Modify in-place"},
+                {"id": "ll-143-edge", "name": "Edge", "brief": "Single node, two nodes, odd vs even length"},
+            ],
+        },
+        # ── PATTERN 20: MATRIX / 2D TRAVERSAL ────────────────────────────────
+        {
+            "id": "mx-rotate-image",
+            "name": "Rotate Image",
+            "brief": "LC #48 [Medium] — transpose then reverse rows",
+            "category": "Matrix / 2D Traversal",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "mx-48-python", "name": "Python", "brief": "Transpose (swap matrix[i][j] with matrix[j][i]) then reverse each row"},
+                {"id": "mx-48-real", "name": "Real-World", "brief": "Image rotation in CV, game board rotation, screen orientation change"},
+                {"id": "mx-48-remember", "name": "Remember", "brief": "90 clockwise = transpose + reverse rows. 90 counter-clockwise = transpose + reverse columns"},
+                {"id": "mx-48-edge", "name": "Edge", "brief": "1x1 matrix, 2x2 matrix, non-square (can't rotate in-place)"},
+            ],
+        },
+        {
+            "id": "mx-spiral-matrix",
+            "name": "Spiral Matrix",
+            "brief": "LC #54 [Medium] — four shrinking boundaries",
+            "category": "Matrix / 2D Traversal",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "mx-54-python", "name": "Python", "brief": "Four boundaries (top, bottom, left, right), shrink after each direction"},
+                {"id": "mx-54-real", "name": "Real-World", "brief": "Printer rasterization, CNC machine path, snake game board traversal"},
+                {"id": "mx-54-remember", "name": "Remember", "brief": "Go right→down→left→up, shrink boundary after each. Check boundary still valid after each shrink"},
+                {"id": "mx-54-edge", "name": "Edge", "brief": "Single row, single column, 1x1, non-square matrix"},
+            ],
+        },
+        {
+            "id": "mx-set-matrix-zeroes",
+            "name": "Set Matrix Zeroes",
+            "brief": "LC #73 [Medium] — use first row/col as markers",
+            "category": "Matrix / 2D Traversal",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "mx-73-python", "name": "Python", "brief": "Use first row/col as markers, separate flag for row0/col0"},
+                {"id": "mx-73-real", "name": "Real-World", "brief": "Spreadsheet formula propagation (zeroing dependent cells), game of life neighbor marking"},
+                {"id": "mx-73-remember", "name": "Remember", "brief": "O(1) space: first row/col store which rows/cols to zero. Process non-first row/col first on cleanup"},
+                {"id": "mx-73-edge", "name": "Edge", "brief": "No zeros, entire matrix zeros, zeros only in first row/col"},
+            ],
+        },
+        {
+            "id": "mx-search-2d-matrix",
+            "name": "Search a 2D Matrix",
+            "brief": "LC #74 [Medium] — treat as 1D sorted array",
+            "category": "Matrix / 2D Traversal",
+            "difficulty": "Medium",
+            "prerequisites": [],
+            "subtopics": [
+                {"id": "mx-74-python", "name": "Python", "brief": "Treat as 1D sorted array. index → row = mid//cols, col = mid%cols"},
+                {"id": "mx-74-real", "name": "Real-World", "brief": "Searching in paginated sorted data, matrix-stored sorted databases"},
+                {"id": "mx-74-remember", "name": "Remember", "brief": "Virtual 1D index mapping: row = mid // n, col = mid % n. Standard binary search"},
+                {"id": "mx-74-edge", "name": "Edge", "brief": "Single row, single column, target smaller/larger than all elements"},
+            ],
+        },
+    ]
+
+    for topic in seed_data:
+        cursor.execute(
+            """
+            INSERT OR IGNORE INTO dsa_topics (
+                id, name, brief, category, difficulty, prerequisites_json, subtopics_json, is_custom
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+            """,
+            (
+                topic["id"],
+                topic["name"],
+                topic["brief"],
+                topic["category"],
+                topic["difficulty"],
+                json.dumps(topic.get("prerequisites", [])),
+                json.dumps(topic.get("subtopics", [])),
+            )
+        )
+
+def fetch_dsa_topics() -> list:
+    import json
+    from interview_ninja.db import get_db_path # avoid cyclic or global issues if any, but get_db_path is defined
+    conn = sqlite3.connect(get_db_path())
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, name, brief, category, difficulty, prerequisites_json, subtopics_json, is_custom
+            FROM dsa_topics
+            ORDER BY is_custom ASC, id ASC
+            """
+        )
+        rows = cursor.fetchall()
+        topics = []
+        for r in rows:
+            topics.append({
+                "id": r[0],
+                "name": r[1],
+                "brief": r[2],
+                "category": r[3],
+                "difficulty": r[4],
+                "prerequisites": json.loads(r[5]),
+                "subtopics": json.loads(r[6]),
+                "isCustom": bool(r[7]),
+            })
+        return topics
+    finally:
+        conn.close()
+
+def save_dsa_topic(payload: dict) -> None:
+    import json
+    from interview_ninja.db import get_db_path
+    conn = sqlite3.connect(get_db_path())
+    try:
+        cursor = conn.cursor()
+        
+        prereqs_str = json.dumps(payload.get("prerequisites", []))
+        subtopics_str = json.dumps(payload.get("subtopics", []))
+        
+        cursor.execute(
+            """
+            INSERT INTO dsa_topics (
+                id, name, brief, category, difficulty, prerequisites_json, subtopics_json, is_custom
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+            ON CONFLICT(id) DO UPDATE SET
+                name=excluded.name,
+                brief=excluded.brief,
+                category=excluded.category,
+                difficulty=excluded.difficulty,
+                prerequisites_json=excluded.prerequisites_json,
+                subtopics_json=excluded.subtopics_json,
+                is_custom=COALESCE((SELECT is_custom FROM dsa_topics WHERE id=excluded.id), 1)
+            """,
+            (
+                payload["id"],
+                payload["name"],
+                payload["brief"],
+                payload["category"],
+                payload["difficulty"],
+                prereqs_str,
+                subtopics_str,
+            )
+        )
+        conn.commit()
+    finally:
+        conn.close()

@@ -37,6 +37,8 @@ from interview_ninja.db import (
     save_system_design_topic,
     fetch_cv_topics,
     save_cv_topic,
+    fetch_lab_sections,
+    save_lab_section,
 )
 from interview_ninja.export_md import render_markdown_for_day
 
@@ -268,6 +270,21 @@ async def export_markdown(
     return render_markdown_for_day(records, session_date=session_date)
 
 
+class LabSectionIn(BaseModel):
+    name: str
+    isCustom: bool = True
+
+@app.get("/{lab_name}/sections")
+async def get_lab_sections_endpoint(lab_name: str) -> List[dict]:
+    db_lab_name = lab_name.replace('-', '_')
+    return fetch_lab_sections(db_lab_name)
+
+@app.post("/{lab_name}/sections")
+async def save_lab_section_endpoint(lab_name: str, payload: LabSectionIn) -> dict:
+    db_lab_name = lab_name.replace('-', '_')
+    save_lab_section(db_lab_name, payload.name, 1 if payload.isCustom else 0)
+    return {"status": "success"}
+
 class SDSubtopicIn(BaseModel):
     id: str
     name: str
@@ -322,6 +339,30 @@ async def save_cv_topic_endpoint(payload: CVTopicIn) -> dict:
     save_cv_topic(payload.model_dump())
     return {"status": "success"}
 
+class DSASubtopicIn(BaseModel):
+    id: str
+    name: str
+    brief: str
+
+class DSATopicIn(BaseModel):
+    id: str
+    name: str
+    brief: str
+    category: str
+    difficulty: str
+    prerequisites: List[str] = Field(default_factory=list)
+    subtopics: List[DSASubtopicIn] = Field(default_factory=list)
+
+@app.get("/dsa/topics")
+async def get_dsa_topics_endpoint() -> List[dict]:
+    from interview_ninja.db import fetch_dsa_topics
+    return fetch_dsa_topics()
+
+@app.post("/dsa/topics")
+async def save_dsa_topic_endpoint(payload: DSATopicIn) -> dict:
+    from interview_ninja.db import save_dsa_topic
+    save_dsa_topic(payload.model_dump())
+    return {"status": "success"}
 
 # To run locally:
 #   uvicorn backend.main:app --reload --port 8000

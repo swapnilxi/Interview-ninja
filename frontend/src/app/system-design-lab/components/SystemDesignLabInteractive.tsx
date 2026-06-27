@@ -778,15 +778,33 @@ function initSections(): Record<string, SectionState> {
 
 export default function SystemDesignLabInteractive() {
   const [topics, setTopics] = useState<SDTopic[]>(TOPICS);
-  const [selectedTopicId, setSelectedTopicId] = useState('scaling-fundamentals');
+  const [selectedTopicId, setSelectedTopicId] = useState('wiki');
   const [selectedSubtopicId, setSelectedSubtopicId] = useState<string | null>(null);
-  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set(['scaling-fundamentals']));
+  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
   const [sections, setSections] = useState<Record<string, SectionState>>(initSections());
   const [customInput, setCustomInput] = useState('');
   const [addingCustom, setAddingCustom] = useState(false);
+  const [addingSubtopicTo, setAddingSubtopicTo] = useState<string | null>(null);
+  const [newSubtopicInput, setNewSubtopicInput] = useState('');
   const [quizBatch, setQuizBatch] = useState(0);
 
+  const [sectionsData, setSectionsData] = useState<{id: number, labName: string, name: string, isCustom: boolean}[]>([]);
+  const [addingSection, setAddingSection] = useState(false);
+  const [customSectionInput, setCustomSectionInput] = useState('');
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+
   useEffect(() => {
+    fetch('http://localhost:8000/system-design/sections')
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then(data => {
+        setSectionsData(data);
+        setExpandedSections(new Set(data.map((s: any) => s.name)));
+      })
+      .catch(err => console.error("Error fetching sections:", err));
+
     fetch('http://localhost:8000/system-design/topics')
       .then(res => {
         if (!res.ok) throw new Error("HTTP error " + res.status);
@@ -805,15 +823,83 @@ export default function SystemDesignLabInteractive() {
       });
   }, []);
 
+  const handleAddCustomSection = () => {
+    if (!customSectionInput.trim()) return;
+    setAddingSection(true);
+    const newSection = { name: customSectionInput.trim(), isCustom: true };
+    fetch('http://localhost:8000/system-design/sections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newSection)
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then(() => {
+        setSectionsData(prev => [...prev, { id: Date.now(), labName: 'system_design', name: newSection.name, isCustom: true }]);
+        setExpandedSections(prev => new Set([...prev, newSection.name]));
+        setCustomSectionInput('');
+        setAddingSection(false);
+      })
+      .catch(err => {
+        console.error("Error saving custom section:", err);
+        setAddingSection(false);
+      });
+  };
+
+  const handleAddSubtopic = (topicId: string) => {
+    if (!newSubtopicInput.trim()) return;
+    const parentTopic = allTopics.find(t => t.id === topicId);
+    if (!parentTopic) return;
+
+    const newSubtopic = {
+      id: `sub-${Date.now()}`,
+      name: newSubtopicInput.trim(),
+      brief: 'Custom subtopic.'
+    };
+
+    const updatedTopic = {
+      ...parentTopic,
+      subtopics: [...parentTopic.subtopics, newSubtopic]
+    };
+
+    fetch('http://localhost:8000/system-design/topics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedTopic)
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then(() => {
+        setTopics(prev => prev.map(t => t.id === topicId ? updatedTopic : t));
+        setNewSubtopicInput('');
+        setAddingSubtopicTo(null);
+        setExpandedTopics(prev => new Set([...prev, topicId]));
+      })
+      .catch(err => {
+        console.error("Error saving subtopic to DB, saving in client state as fallback:", err);
+        setTopics(prev => prev.map(t => t.id === topicId ? updatedTopic : t));
+        setNewSubtopicInput('');
+        setAddingSubtopicTo(null);
+        setExpandedTopics(prev => new Set([...prev, topicId]));
+      });
+  };
+
   const allTopics = topics;
   const currentTopic = allTopics.find(t => t.id === selectedTopicId) ?? null;
   const currentSubtopic = currentTopic?.subtopics.find(s => s.id === selectedSubtopicId) ?? null;
-  const contextLabel = currentSubtopic?.name ?? currentTopic?.name ?? 'System Design';
+  const contextLabel = selectedTopicId === 'wiki' ? 'Wiki Index' : (currentSubtopic?.name ?? currentTopic?.name ?? 'System Design');
 
-  const flatItems = allTopics.flatMap(t => [
-    { id: t.id, type: 'topic', topicId: t.id, label: t.name },
-    ...t.subtopics.map(s => ({ id: s.id, type: 'subtopic', topicId: t.id, label: s.name })),
-  ]);
+  const flatItems = [
+    { id: 'wiki', type: 'topic', topicId: 'wiki', label: 'Wiki Index' },
+    ...allTopics.flatMap(t => [
+      { id: t.id, type: 'topic', topicId: t.id, label: t.name },
+      ...t.subtopics.map(s => ({ id: s.id, type: 'subtopic', topicId: t.id, label: s.name })),
+    ])
+  ];
   const activeId = selectedSubtopicId ?? selectedTopicId;
   const currentIdx = flatItems.findIndex(x => x.id === activeId);
   const prevItem = currentIdx > 0 ? flatItems[currentIdx - 1] : null;
@@ -832,7 +918,9 @@ export default function SystemDesignLabInteractive() {
     setSelectedSubtopicId(null);
     setSections(initSections());
     setQuizBatch(0);
-    setExpandedTopics(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    if (id !== 'wiki') {
+      setExpandedTopics(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    }
   };
 
   const generateSection = (sectionId: string) => {
@@ -842,6 +930,52 @@ export default function SystemDesignLabInteractive() {
       setSections(prev => ({ ...prev, [sectionId]: { generated: true, generating: false, content: getContent(sectionId, currentTopic) } }));
     }, 1500);
   };
+
+
+  const [addingTopicToSection, setAddingTopicToSection] = useState<string | null>(null);
+  const [newTopicInput, setNewTopicInput] = useState('');
+
+  const handleAddTopicToSection = (sectionName: string) => {
+    if (!newTopicInput.trim()) return;
+    const newTopic: SDTopic = {
+      id: `custom-${Date.now()}`,
+      name: newTopicInput.trim(),
+      brief: 'Custom system design problem.',
+      category: sectionName,
+      scale: '1M RPS',
+      difficulty: 'Medium',
+      isLLD: false,
+      subtopics: []
+    };
+
+    fetch('http://localhost:8000/system-design/topics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newTopic)
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then(() => {
+        setTopics(prev => [...prev, newTopic]);
+        setNewTopicInput('');
+        setAddingTopicToSection(null);
+      })
+      .catch(err => {
+        console.error("Error saving topic to DB:", err);
+        setTopics(prev => [...prev, newTopic]);
+        setNewTopicInput('');
+        setAddingTopicToSection(null);
+      });
+  };
+
+  const dynamicSections = sectionsData.map(s => s.name);
+  const allSectionNames = Array.from(new Set([...dynamicSections, ...allTopics.map(t => t.category)]));
+  const groupedSections = allSectionNames.map(sectionName => ({
+    name: sectionName,
+    topics: allTopics.filter(t => t.category === sectionName)
+  }));
 
   const handleAddCustom = () => {
     if (!customInput.trim()) return;
@@ -889,11 +1023,59 @@ export default function SystemDesignLabInteractive() {
             <h2 className="font-heading text-sm font-semibold text-foreground flex items-center gap-9">
               <Icon name="ServerStackIcon" size={15} className="text-primary" />System Design Lab
             </h2>
-            <p className="text-xs text-muted-foreground mt-3">Select problem → Generate sections</p>
+            <p className="text-xs text-muted-foreground mt-3 mb-6">Select problem → Generate sections</p>
+            <div className="flex flex-col gap-4 mt-4">
+              <div className="flex gap-4">
+                <input value={customSectionInput} onChange={e => setCustomSectionInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddCustomSection()}
+                  placeholder="Add custom section..."
+                  className="flex-1 min-w-0 bg-input border border-border rounded-md px-9 py-6 text-xs focus-ring placeholder:text-muted-foreground" />
+                <button onClick={handleAddCustomSection} disabled={addingSection || !customSectionInput.trim()}
+                  className="p-6 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-smooth disabled:opacity-50 flex-shrink-0">
+                  {addingSection ? <span className="w-12 h-12 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin block" /> : <Icon name="PlusIcon" size={14} />}
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto py-6">
-            {allTopics.map(topic => (
+            <button onClick={() => selectTopic('wiki')}
+                className={`w-full text-left flex items-start gap-8 px-14 py-9 text-xs font-semibold transition-smooth hover:bg-muted ${selectedTopicId === 'wiki' ? 'bg-primary/10 text-primary border-r-2 border-primary' : 'text-foreground'}`}>
+                <Icon name="BookOpenIcon" size={12} className="flex-shrink-0 mt-3" />
+                <div className="flex-1 min-w-0">
+                  <span className="block truncate">Wiki Index</span>
+                  <div className="flex items-center gap-6 mt-2 flex-wrap">
+                    <span className="text-[9px] text-muted-foreground opacity-85 leading-none">
+                      Dynamic Content
+                    </span>
+                  </div>
+                </div>
+            </button>
+            {groupedSections.map(section => (
+              <div key={section.name} className="mt-2">
+                <div className="flex items-center px-14 py-6 group cursor-pointer hover:bg-muted/50 transition-smooth" onClick={() => setExpandedSections(prev => { const n = new Set(prev); n.has(section.name) ? n.delete(section.name) : n.add(section.name); return n; })}>
+                  <Icon name={expandedSections.has(section.name) ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={12} className="text-muted-foreground mr-6 flex-shrink-0" />
+                  <span className="text-xs font-bold text-foreground uppercase tracking-wider flex-1 truncate">{section.name}</span>
+                  <button onClick={(e) => { e.stopPropagation(); setAddingTopicToSection(addingTopicToSection === section.name ? null : section.name); }}
+                    className="p-4 text-muted-foreground hover:text-foreground hover:bg-border rounded-full transition-smooth opacity-0 group-hover:opacity-100 flex-shrink-0">
+                    <Icon name="PlusIcon" size={12} />
+                  </button>
+                </div>
+                {addingTopicToSection === section.name && (
+                  <div className="px-14 py-6 bg-muted/30 border-y border-border">
+                    <div className="flex gap-4">
+                      <input autoFocus value={newTopicInput} onChange={e => setNewTopicInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddTopicToSection(section.name)}
+                        placeholder="Add topic..."
+                        className="flex-1 min-w-0 bg-input border border-border rounded-sm px-6 py-4 text-[10px] focus-ring placeholder:text-muted-foreground" />
+                      <button onClick={() => handleAddTopicToSection(section.name)} disabled={!newTopicInput.trim()}
+                        className="p-4 bg-secondary text-secondary-foreground rounded-sm hover:bg-secondary/90 transition-smooth disabled:opacity-50 flex-shrink-0">
+                        <Icon name="PlusIcon" size={10} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {expandedSections.has(section.name) && (
+                  <div>
+                    {section.topics.map(topic => (
               <div key={topic.id}>
                 <button onClick={() => selectTopic(topic.id)}
                   className={`w-full text-left flex items-start gap-8 px-14 py-10 text-xs font-semibold transition-smooth hover:bg-muted ${selectedTopicId === topic.id && !selectedSubtopicId ? 'bg-primary/10 text-primary border-r-2 border-primary' : 'text-foreground'}`}>
@@ -916,8 +1098,25 @@ export default function SystemDesignLabInteractive() {
                       )}
                     </div>
                   </div>
-                  <Icon name={expandedTopics.has(topic.id) ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={11} className="text-muted-foreground flex-shrink-0 mt-3" />
+                  <button onClick={(e) => { e.stopPropagation(); setAddingSubtopicTo(addingSubtopicTo === topic.id ? null : topic.id); }}
+                    className="p-4 ml-2 text-muted-foreground hover:text-foreground hover:bg-border rounded-full transition-smooth flex-shrink-0">
+                    <Icon name="PlusIcon" size={10} />
+                  </button>
+                  <Icon name={expandedTopics.has(topic.id) ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={11} className="text-muted-foreground flex-shrink-0 mt-3 ml-2" />
                 </button>
+                {addingSubtopicTo === topic.id && (
+                  <div className="px-14 py-6 bg-muted/30 border-y border-border">
+                    <div className="flex gap-4">
+                      <input autoFocus value={newSubtopicInput} onChange={e => setNewSubtopicInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddSubtopic(topic.id)}
+                        placeholder="Add subtopic..."
+                        className="flex-1 min-w-0 bg-input border border-border rounded-sm px-6 py-4 text-[10px] focus-ring placeholder:text-muted-foreground" />
+                      <button onClick={() => handleAddSubtopic(topic.id)} disabled={!newSubtopicInput.trim()}
+                        className="p-4 bg-secondary text-secondary-foreground rounded-sm hover:bg-secondary/90 transition-smooth disabled:opacity-50 flex-shrink-0">
+                        <Icon name="PlusIcon" size={10} />
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {expandedTopics.has(topic.id) && topic.subtopics.length > 0 && (
                   <div>
                     {topic.subtopics.map(sub => (
@@ -931,25 +1130,67 @@ export default function SystemDesignLabInteractive() {
                   </div>
                 )}
               </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
-          </div>
-
-          <div className="p-12 border-t border-border flex-shrink-0">
-            <div className="flex gap-6">
-              <input value={customInput} onChange={e => setCustomInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddCustom()}
-                placeholder="Add custom problem..."
-                className="flex-1 min-w-0 bg-input border border-border rounded-md px-9 py-6 text-xs focus-ring placeholder:text-muted-foreground" />
-              <button onClick={handleAddCustom} disabled={addingCustom || !customInput.trim()}
-                className="p-6 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-smooth disabled:opacity-50 flex-shrink-0">
-                {addingCustom ? <span className="w-12 h-12 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin block" /> : <Icon name="PlusIcon" size={14} />}
-              </button>
-            </div>
           </div>
         </aside>
 
         {/* ── CENTER ────────────────────────────────────────────────────── */}
         <main className="flex-1 overflow-y-auto">
-          {!currentTopic ? (
+          {selectedTopicId === 'wiki' ? (
+            <div className="p-20 space-y-14 max-w-4xl mx-auto">
+              <div className="bg-card border border-border rounded-lg p-20 shadow-sm text-center">
+                <Icon name="BookOpenIcon" size={42} className="text-primary mb-6 mx-auto" />
+                <h1 className="font-heading text-2xl font-bold text-foreground mb-4">System Design Wiki</h1>
+                <p className="text-sm text-muted-foreground max-w-lg mx-auto">
+                  A dynamic, auto-generated reference guide constructed from all AI and user-generated System Design topics.
+                </p>
+              </div>
+              <div className="space-y-12">
+                {groupedSections.map(section => (
+                  <div key={section.name} className="space-y-6">
+                    <h2 className="text-xl font-bold text-foreground border-b border-border pb-2 mt-8 mb-4">{section.name}</h2>
+                    {section.topics.map(t => (
+                  <div key={t.id} className="border border-border bg-card rounded-md p-14 shadow-sm">
+                    <div className="flex flex-wrap items-center gap-6 mb-4">
+                      <span className={`text-[10px] px-6 py-2 rounded font-semibold ${diffColor(t.difficulty)}`}>{t.difficulty}</span>
+                      {t.isLLD && <span className="text-[10px] bg-accent/10 text-accent px-6 py-2 rounded font-semibold">LLD</span>}
+                      <span className="text-[10px] bg-muted text-muted-foreground px-6 py-2 rounded">{t.category}</span>
+                      {t.scale !== 'N/A' && <span className="text-[10px] bg-muted text-muted-foreground px-6 py-2 rounded">Scale: {t.scale}</span>}
+                    </div>
+                    <h2 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-6 cursor-pointer hover:text-primary transition-smooth" onClick={() => selectTopic(t.id)}>
+                      {t.name}
+                    </h2>
+                    <p className="text-sm text-muted-foreground mb-8">{t.brief}</p>
+                    
+                    <div className="bg-background border border-border rounded-md p-6">
+                      <h3 className="text-xs font-semibold text-foreground mb-4 pl-4 border-l-2 border-primary">Subtopics</h3>
+                      {t.subtopics.length > 0 ? (
+                        <ul className="space-y-3">
+                          {t.subtopics.map(s => (
+                            <li key={s.id} className="text-sm flex flex-col gap-1 pl-4 cursor-pointer group" onClick={() => { setSelectedTopicId(t.id); setSelectedSubtopicId(s.id); setSections(initSections()); setQuizBatch(0); setExpandedTopics(prev => new Set([...prev, t.id])); }}>
+                              <span className="font-medium text-foreground group-hover:text-primary transition-smooth flex items-center gap-4">
+                                <Icon name="ChevronRightIcon" size={10} className="text-primary group-hover:scale-110 transition-transform" />
+                                {s.name}
+                              </span>
+                              <span className="text-xs text-muted-foreground pl-6 group-hover:text-foreground transition-smooth">{s.brief}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic pl-4">No subtopics added yet.</p>
+                      )}
+                    </div>
+                  </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : !currentTopic ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-24">
               <Icon name="ServerStackIcon" size={48} variant="outline" className="text-muted-foreground/30 mb-18" />
               <h2 className="font-heading text-xl font-semibold text-foreground mb-9">Select a System Design Problem</h2>
