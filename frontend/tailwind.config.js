@@ -82,10 +82,10 @@ module.exports = {
         glow: 'var(--shadow-glow)',
       },
       fontFamily: {
-        heading: ['JetBrains Mono', 'monospace'],
-        body: ['Inter', 'sans-serif'],
-        caption: ['Source Sans Pro', 'sans-serif'],
-        code: ['Fira Code', 'monospace'],
+        heading: ['Plus Jakarta Sans', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        body:    ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        caption: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        code:    ['Fira Code', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
       },
       spacing: {
         '6': '6px',

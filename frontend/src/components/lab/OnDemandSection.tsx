@@ -38,7 +38,7 @@ export default function OnDemandSection({
           </div>
           <div>
             <div className="flex items-center gap-9">
-              <span className="text-xs text-muted-foreground font-code">{String(sectionIndex).padStart(2, '0')}</span>
+              <span className="text-xs text-muted-foreground/60 font-medium w-6 text-center">{String(sectionIndex).padStart(2, '0')}</span>
               <h3 className="font-heading text-sm font-semibold text-foreground">{title}</h3>
             </div>
             {subtitle && <p className="text-xs text-muted-foreground mt-2">{subtitle}</p>}
