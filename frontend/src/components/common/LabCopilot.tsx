@@ -141,9 +141,9 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
   const hints = HINT_LEVELS[labType] ?? HINT_LEVELS.default;
 
   return (
-    <div className="flex flex-col h-full bg-card border-l border-border overflow-hidden">
+    <div className="flex flex-col" style={{ height: '100%', overflow: 'hidden' }}>
       {/* Header */}
-      <div className="p-14 border-b border-border bg-gradient-to-r from-primary/5 to-secondary/5 flex-shrink-0">
+      <div className="p-4 border-b border-border bg-surface flex-shrink-0">
         <div className="flex items-center gap-9 mb-2">
           <div className="w-28 h-28 rounded-full bg-secondary/20 flex items-center justify-center">
             <Icon name="SparklesIcon" size={14} className="text-secondary" variant="solid" />
@@ -154,7 +154,7 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border flex-shrink-0">
+      <div className="flex border-b border-border bg-card flex-shrink-0">
         {tabs.map(tab => (
           <button
             key={tab.id}
@@ -171,13 +171,14 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
         ))}
       </div>
 
-      {/* Tab content */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      {/* Tab content — fills remaining space, uses flex column so children can pin bottom */}
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
 
         {/* CHAT TAB */}
         {activeTab === 'chat' && (
-          <div className="flex flex-col h-full">
-            <div className="flex-1 overflow-y-auto p-12 space-y-10">
+          <div className="flex flex-col" style={{ height: "100%", overflow: 'hidden' }}>
+            {/* Scrollable messages — flex-1 + min-h-0 keeps it from overflowing */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 scrollbar-clean">
               {messages.map(msg => (
                 <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[90%] px-12 py-9 rounded-lg text-xs leading-relaxed ${
@@ -202,22 +203,24 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
               )}
               <div ref={endRef} />
             </div>
-            <div className="p-10 border-t border-border flex-shrink-0">
+
+            {/* Pinned input — flex-shrink-0 keeps it fixed at the bottom */}
+            <div className="flex-shrink-0 border-t border-border bg-card p-3">
               {/* Quick prompts */}
-              <div className="grid grid-cols-2 gap-5 mb-9">
+              <div className="grid grid-cols-2 gap-1.5 mb-3">
                 {['Explain simply', 'Common mistakes', 'Production tips', 'Edge cases'].map(p => (
                   <button key={p} onClick={() => sendChat(p)} disabled={chatGenerating}
-                    className="text-xs px-8 py-5 rounded-md border border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-primary/5 transition-smooth disabled:opacity-50 text-left leading-tight">
+                    className="text-xs px-2 py-1.5 rounded-md border border-border text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-primary/5 transition-smooth disabled:opacity-50 text-left leading-tight">
                     {p}
                   </button>
                 ))}
               </div>
-              <form onSubmit={e => { e.preventDefault(); sendChat(input); }} className="flex gap-6 relative">
+              <form onSubmit={e => { e.preventDefault(); sendChat(input); }} className="flex gap-2 relative">
                 <input value={input} onChange={e => setInput(e.target.value)} disabled={chatGenerating}
                   placeholder="Ask anything..."
-                  className="flex-1 bg-input border border-border rounded-full py-7 pl-12 pr-36 text-xs focus-ring placeholder:text-muted-foreground" />
+                  className="flex-1 bg-input border border-border rounded-full py-2 pl-3 pr-9 text-xs focus-ring placeholder:text-muted-foreground" />
                 <button type="submit" disabled={!input.trim() || chatGenerating}
-                  className="absolute right-5 top-1/2 -translate-y-1/2 p-5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-smooth disabled:opacity-50">
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-smooth disabled:opacity-50">
                   <Icon name="PaperAirplaneIcon" size={12} variant="solid" />
                 </button>
               </form>
@@ -227,91 +230,100 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
 
         {/* HINT TAB */}
         {activeTab === 'hint' && (
-          <div className="p-16 space-y-16">
-            <div className="text-center">
-              <Icon name="LightBulbIcon" size={32} variant="outline" className="text-warning mx-auto mb-9" />
-              <h4 className="font-heading text-sm font-semibold text-foreground mb-4">Progressive Hints</h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Hints get more specific with each level. Try to solve it before going deeper.
-              </p>
-            </div>
+          <div className="flex flex-col" style={{ height: '100%', overflow: 'hidden' }}>
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 scrollbar-clean">
+              <div className="text-center">
+                <Icon name="LightBulbIcon" size={32} variant="outline" className="text-warning mx-auto mb-9" />
+                <h4 className="font-heading text-sm font-semibold text-foreground mb-4">Progressive Hints</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Hints get more specific with each level. Try to solve it before going deeper.
+                </p>
+              </div>
 
-            {/* Hint levels shown */}
-            <div className="space-y-12">
-              {hints.slice(0, hintLevel).map((hint, i) => (
-                <div key={i} className={`p-12 rounded-lg text-xs leading-relaxed border ${
-                  i === 0 ? 'bg-success/5 border-success/20' :
-                  i === 1 ? 'bg-warning/5 border-warning/20' : 'bg-error/5 border-error/20'
-                }`}>
-                  {hint}
+              {/* Hint levels shown */}
+              <div className="space-y-12">
+                {hints.slice(0, hintLevel).map((hint, i) => (
+                  <div key={i} className={`p-12 rounded-lg text-xs leading-relaxed border ${
+                    i === 0 ? 'bg-success/5 border-success/20' :
+                    i === 1 ? 'bg-warning/5 border-warning/20' : 'bg-error/5 border-error/20'
+                  }`}>
+                    {hint}
+                  </div>
+                ))}
+              </div>
+
+              {generating && activeTab === 'hint' && (
+                <div className="flex justify-center py-12">
+                  <span className="w-20 h-20 border-2 border-warning/30 border-t-warning rounded-full animate-spin" />
                 </div>
-              ))}
+              )}
+
+              {/* Hint level indicators */}
+              <div className="flex justify-center gap-9 pt-2">
+                {hints.map((_, i) => (
+                  <div key={i} className={`w-24 h-6 rounded-full ${i < hintLevel ? 'bg-warning' : 'bg-muted'}`} />
+                ))}
+              </div>
             </div>
 
-            {generating && activeTab === 'hint' && (
-              <div className="flex justify-center py-12">
-                <span className="w-20 h-20 border-2 border-warning/30 border-t-warning rounded-full animate-spin" />
+            {/* Pinned bottom action */}
+            {hintLevel < hints.length && !generating && (
+              <div className="flex-shrink-0 border-t border-border bg-card p-3">
+                <button onClick={getNextHint}
+                  className="w-full py-10 rounded-md border border-warning text-warning text-xs font-semibold hover:bg-warning/10 transition-smooth flex items-center justify-center gap-6">
+                  <Icon name="LightBulbIcon" size={14} />
+                  {hintLevel === 0 ? 'Get First Hint' : `Get Level ${hintLevel + 1} Hint`}
+                </button>
               </div>
             )}
-
-            {hintLevel < hints.length && !generating && (
-              <button onClick={getNextHint}
-                className="w-full py-10 rounded-md border border-warning text-warning text-xs font-semibold hover:bg-warning/10 transition-smooth flex items-center justify-center gap-6">
-                <Icon name="LightBulbIcon" size={14} />
-                {hintLevel === 0 ? 'Get First Hint' : `Get Level ${hintLevel + 1} Hint`}
-              </button>
-            )}
-
             {hintLevel >= hints.length && (
-              <div className="text-center py-12">
+              <div className="flex-shrink-0 border-t border-border bg-card p-3 text-center">
                 <p className="text-xs text-muted-foreground">All hint levels revealed. Try the solution now!</p>
               </div>
             )}
-
-            {/* Hint level indicators */}
-            <div className="flex justify-center gap-9">
-              {hints.map((_, i) => (
-                <div key={i} className={`w-24 h-6 rounded-full ${i < hintLevel ? 'bg-warning' : 'bg-muted'}`} />
-              ))}
-            </div>
           </div>
         )}
 
         {/* DIVE DEEPER TAB */}
         {activeTab === 'deeper' && (
-          <div className="p-16 space-y-16">
-            <div className="text-center">
-              <Icon name="MagnifyingGlassIcon" size={32} variant="outline" className="text-secondary mx-auto mb-9" />
-              <h4 className="font-heading text-sm font-semibold text-foreground mb-4">Dive Deeper</h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Advanced internals, production insights, and what senior engineers know that juniors miss.
-              </p>
+          <div className="flex flex-col" style={{ height: '100%', overflow: 'hidden' }}>
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 scrollbar-clean">
+              <div className="text-center">
+                <Icon name="MagnifyingGlassIcon" size={32} variant="outline" className="text-secondary mx-auto mb-9" />
+                <h4 className="font-heading text-sm font-semibold text-foreground mb-4">Dive Deeper</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Advanced internals, production insights, and what senior engineers know that juniors miss.
+                </p>
+              </div>
+
+              {generating && activeTab === 'deeper' && (
+                <div className="flex justify-center py-18">
+                  <span className="w-20 h-20 border-2 border-secondary/30 border-t-secondary rounded-full animate-spin" />
+                </div>
+              )}
+
+              {deeperShown && (
+                <div className="text-xs leading-relaxed text-foreground space-y-10 animate-fade-in">
+                  {(DIVE_DEEPER[labType] ?? DIVE_DEEPER.default).split('\n').map((line, i) => {
+                    if (line.startsWith('**') && line.endsWith('**'))
+                      return <h5 key={i} className="font-semibold text-foreground mt-14 mb-4">{line.replace(/\*\*/g, '')}</h5>;
+                    if (/^\d+\./.test(line))
+                      return <p key={i} className="text-muted-foreground">{line}</p>;
+                    return line.trim() ? <p key={i}>{line}</p> : <div key={i} className="h-4" />;
+                  })}
+                </div>
+              )}
             </div>
 
-            {generating && activeTab === 'deeper' && (
-              <div className="flex justify-center py-18">
-                <span className="w-20 h-20 border-2 border-secondary/30 border-t-secondary rounded-full animate-spin" />
-              </div>
-            )}
-
+            {/* Pinned bottom action */}
             {!deeperShown && !generating && (
-              <button
-                onClick={() => triggerGenerate(() => setDeeperShown(true))}
-                className="w-full py-10 rounded-md bg-secondary/10 border border-secondary/30 text-secondary text-xs font-semibold hover:bg-secondary/20 transition-smooth flex items-center justify-center gap-6"
-              >
-                <Icon name="SparklesIcon" size={14} />Generate Deep Insights
-              </button>
-            )}
-
-            {deeperShown && (
-              <div className="text-xs leading-relaxed text-foreground space-y-10 animate-fade-in">
-                {(DIVE_DEEPER[labType] ?? DIVE_DEEPER.default).split('\n').map((line, i) => {
-                  if (line.startsWith('**') && line.endsWith('**'))
-                    return <h5 key={i} className="font-semibold text-foreground mt-14 mb-4">{line.replace(/\*\*/g, '')}</h5>;
-                  if (/^\d+\./.test(line))
-                    return <p key={i} className="text-muted-foreground">{line}</p>;
-                  return line.trim() ? <p key={i}>{line}</p> : <div key={i} className="h-4" />;
-                })}
+              <div className="flex-shrink-0 border-t border-border bg-card p-3">
+                <button
+                  onClick={() => triggerGenerate(() => setDeeperShown(true))}
+                  className="w-full py-10 rounded-md bg-secondary/10 border border-secondary/30 text-secondary text-xs font-semibold hover:bg-secondary/20 transition-smooth flex items-center justify-center gap-6"
+                >
+                  <Icon name="SparklesIcon" size={14} />Generate Deep Insights
+                </button>
               </div>
             )}
           </div>
@@ -319,37 +331,42 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
 
         {/* ELI5 TAB */}
         {activeTab === 'eli5' && (
-          <div className="p-16 space-y-16">
-            <div className="text-center">
-              <Icon name="FaceSmileIcon" size={32} variant="outline" className="text-accent mx-auto mb-9" />
-              <h4 className="font-heading text-sm font-semibold text-foreground mb-4">Explain Like I'm 5</h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                A simple, intuitive explanation — no jargon, no formulas.
-              </p>
+          <div className="flex flex-col" style={{ height: '100%', overflow: 'hidden' }}>
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 scrollbar-clean">
+              <div className="text-center">
+                <Icon name="FaceSmileIcon" size={32} variant="outline" className="text-accent mx-auto mb-9" />
+                <h4 className="font-heading text-sm font-semibold text-foreground mb-4">Explain Like I'm 5</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  A simple, intuitive explanation — no jargon, no formulas.
+                </p>
+              </div>
+
+              {generating && activeTab === 'eli5' && (
+                <div className="flex justify-center py-18">
+                  <span className="w-20 h-20 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+                </div>
+              )}
+
+              {eli5Shown && (
+                <div className="bg-accent/5 border border-accent/20 rounded-lg p-14 text-xs leading-relaxed text-foreground space-y-10 animate-fade-in">
+                  {(ELI5_RESPONSES[labType] ?? ELI5_RESPONSES.default).split('\n').map((line, i) => {
+                    if (line.startsWith('🐣'))
+                      return <h5 key={i} className="font-semibold text-accent">{line}</h5>;
+                    return line.trim() ? <p key={i}>{line}</p> : <div key={i} className="h-3" />;
+                  })}
+                </div>
+              )}
             </div>
 
-            {generating && activeTab === 'eli5' && (
-              <div className="flex justify-center py-18">
-                <span className="w-20 h-20 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
-              </div>
-            )}
-
+            {/* Pinned bottom action */}
             {!eli5Shown && !generating && (
-              <button
-                onClick={() => triggerGenerate(() => setEli5Shown(true))}
-                className="w-full py-10 rounded-md bg-accent/10 border border-accent/30 text-accent text-xs font-semibold hover:bg-accent/20 transition-smooth flex items-center justify-center gap-6"
-              >
-                <Icon name="FaceSmileIcon" size={14} />Explain Simply
-              </button>
-            )}
-
-            {eli5Shown && (
-              <div className="bg-accent/5 border border-accent/20 rounded-lg p-14 text-xs leading-relaxed text-foreground space-y-10 animate-fade-in">
-                {(ELI5_RESPONSES[labType] ?? ELI5_RESPONSES.default).split('\n').map((line, i) => {
-                  if (line.startsWith('🐣'))
-                    return <h5 key={i} className="font-semibold text-accent">{line}</h5>;
-                  return line.trim() ? <p key={i}>{line}</p> : <div key={i} className="h-3" />;
-                })}
+              <div className="flex-shrink-0 border-t border-border bg-card p-3">
+                <button
+                  onClick={() => triggerGenerate(() => setEli5Shown(true))}
+                  className="w-full py-10 rounded-md bg-accent/10 border border-accent/30 text-accent text-xs font-semibold hover:bg-accent/20 transition-smooth flex items-center justify-center gap-6"
+                >
+                  <Icon name="FaceSmileIcon" size={14} />Explain Simply
+                </button>
               </div>
             )}
           </div>

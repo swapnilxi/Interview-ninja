@@ -545,6 +545,150 @@ function diffColor(d: string) {
   return 'text-error bg-error/10';
 }
 
+function cvDiffStyle(d: string): { badge: string; bar: string } {
+  switch (d) {
+    case 'Easy':        return { badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', bar: 'bg-emerald-500' };
+    case 'Easy-Medium': return { badge: 'bg-teal-500/15 text-teal-400 border-teal-500/30',         bar: 'bg-teal-500'   };
+    case 'Medium':      return { badge: 'bg-amber-500/15 text-amber-400 border-amber-500/30',       bar: 'bg-amber-500'  };
+    case 'Medium-Hard': return { badge: 'bg-orange-500/15 text-orange-400 border-orange-500/30',    bar: 'bg-orange-500' };
+    case 'Mixed':       return { badge: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',    bar: 'bg-indigo-500' };
+    default:            return { badge: 'bg-rose-500/15 text-rose-400 border-rose-500/30',           bar: 'bg-rose-500'   };
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   CV WIKI INDEX
+══════════════════════════════════════════════════════════════════════ */
+function CVWikiIndex({
+  groupedSections, allTopics, onSelectTopic, onSelectSub,
+}: {
+  groupedSections: { name: string; topics: CVTopic[] }[];
+  allTopics: CVTopic[];
+  onSelectTopic: (id: string) => void;
+  onSelectSub: (topicId: string, subId: string) => void;
+}) {
+  const totalSubs  = allTopics.reduce((a, t) => a + t.subtopics.length, 0);
+  const hardCount  = allTopics.filter(t => t.difficulty === 'Hard' || t.difficulty === 'Medium-Hard').length;
+  const easyCount  = allTopics.filter(t => t.difficulty === 'Easy' || t.difficulty === 'Easy-Medium').length;
+
+  return (
+    <div className="lab-container space-y-10">
+
+      {/* ── Hero banner ── */}
+      <div className="lab-hero p-8">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(26,157,143,0.18),transparent_60%)] pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-32 h-32 bg-teal-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-teal-500/25">
+              <Icon name="EyeIcon" size={22} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground tracking-tight">CV Lab Wiki</h1>
+              <p className="text-sm text-muted-foreground">Computer vision interview preparation handbook</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {[
+              { label: 'Categories', value: groupedSections.length, color: 'text-teal-400',    bg: 'bg-teal-500/10'    },
+              { label: 'Topics',     value: allTopics.length,        color: 'text-cyan-400',    bg: 'bg-cyan-500/10'    },
+              { label: 'Subtopics', value: totalSubs,                color: 'text-sky-400',     bg: 'bg-sky-500/10'     },
+              { label: 'Hard',       value: hardCount,               color: 'text-rose-400',    bg: 'bg-rose-500/10'    },
+              { label: 'Easy',       value: easyCount,               color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+            ].map(stat => (
+              <div key={stat.label} className={`${stat.bg} border border-border rounded-xl px-4 py-2.5 backdrop-blur-sm min-w-[64px]`}>
+                <div className={`text-2xl font-bold ${stat.color} leading-none`}>{stat.value}</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Clickable Category Index ── */}
+      <div className="lab-card overflow-hidden">
+        <div className="px-5 py-3 border-b border-border bg-muted/20 flex items-center gap-2">
+          <Icon name="ListBulletIcon" size={14} className="text-muted-foreground" />
+          <span className="text-xs font-bold text-foreground uppercase tracking-wider">Category Index</span>
+          <span className="ml-auto text-[10px] text-muted-foreground">{groupedSections.length} categories</span>
+        </div>
+        <div className="p-4">
+          <div className="grid grid-cols-2 gap-0.5">
+            {groupedSections.map((section, i) => (
+              <a key={section.name}
+                href={`#cv-cat-${section.name.replace(/[\s&/()']/g, '-')}`}
+                className="flex items-center gap-2 py-1.5 px-2.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all group">
+                <span className="text-[9px] text-muted-foreground/30 w-4 text-right flex-shrink-0">{i + 1}</span>
+                <span className="flex-1 truncate group-hover:text-teal-400 transition-colors">{section.name}</span>
+                <span className="text-[9px] text-muted-foreground/40 flex-shrink-0">{section.topics.length}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Per-category topic cards ── */}
+      {groupedSections.map(section => (
+        <div key={section.name} id={`cv-cat-${section.name.replace(/[\s&/()']/g, '-')}`} className="space-y-3 scroll-mt-6">
+          <div className="flex items-center gap-3">
+            <h2 className="text-base font-bold text-foreground whitespace-nowrap">{section.name}</h2>
+            <div className="flex-1 h-px bg-gradient-to-r from-border via-border/50 to-transparent" />
+            <span className="text-[10px] text-muted-foreground flex-shrink-0">{section.topics.length} topics</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-5 gap-y-6">
+            {section.topics.map(t => {
+              const ds = cvDiffStyle(t.difficulty);
+              return (
+                <div key={t.id}
+                  className="display-card group relative overflow-hidden cursor-pointer h-full"
+                  onClick={() => onSelectTopic(t.id)}>
+                  {/* Difficulty accent bar */}
+                  <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${ds.bar} opacity-40 group-hover:opacity-80 transition-opacity rounded-l-xl`} />
+                  <div className="pl-4 pr-4 pt-3.5 pb-3">
+                    <div className="flex items-start justify-between gap-3 mb-1.5">
+                      <h3 className="text-sm font-semibold text-foreground group-hover:text-[var(--wiki-cv-hover)] transition-colors leading-snug flex-1 min-w-0">
+                        {t.name}
+                      </h3>
+                      <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground border border-border leading-none">{t.category}</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-md border font-bold leading-none ${ds.badge}`}>{t.difficulty}</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed mb-2">{t.brief}</p>
+
+                    {t.prerequisites.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        <span className="text-[9px] text-muted-foreground/60 self-center">Prereqs:</span>
+                        {t.prerequisites.map(p => (
+                          <span key={p} className="text-[9px] px-1.5 py-0.5 rounded-md bg-primary/5 text-primary/70 border border-primary/10 leading-none">{p}</span>
+                        ))}
+                      </div>
+                    )}
+
+                    {t.subtopics.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {t.subtopics.map(s => (
+                          <button key={s.id}
+                            onClick={e => { e.stopPropagation(); onSelectSub(t.id, s.id); }}
+                            title={s.brief}
+                            className="text-[9px] px-2 py-1 rounded-md bg-muted/80 text-muted-foreground hover:bg-teal-500/15 hover:text-teal-400 transition-all border border-transparent hover:border-teal-500/20 leading-none">
+                            {s.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function initSections(): Record<string, SectionState> {
   return Object.fromEntries(SECTION_DEFS.map(s => [s.id, { generated: false, generating: false, content: '' }]));
 }
@@ -567,6 +711,7 @@ export default function CVLabInteractive() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [addingTopicToSection, setAddingTopicToSection] = useState<string | null>(null);
   const [newTopicInputSection, setNewTopicInputSection] = useState('');
+  const [showAddSec, setShowAddSec] = useState(false);
 
   useEffect(() => {
     fetch('http://localhost:8000/cv/sections')
@@ -798,181 +943,183 @@ export default function CVLabInteractive() {
   };
 
   return (
-    <div className="min-h-screen bg-background pt-[60px] flex flex-col">
-      <div className="flex-1 flex overflow-hidden" style={{ height: 'calc(100vh - 60px)' }}>
+    <div className="lab-shell flex flex-col">
+      <div className="lab-workspace flex">
 
         {/* ── LEFT: Topic Tree ────────────────────────────────────────────── */}
-        <aside className="w-[260px] flex-shrink-0 border-r border-border bg-card flex flex-col">
-          <div className="p-14 border-b border-border flex-shrink-0">
-            <h2 className="font-heading text-sm font-semibold text-foreground flex items-center gap-9">
-              <Icon name="EyeIcon" size={15} className="text-primary" />CV Lab
-            </h2>
-            <p className="text-xs text-muted-foreground mt-3 mb-6">Select topic → Generate sections</p>
-            <div className="flex gap-6 mt-4">
-              <input value={newTopicInputSection} onChange={e => setNewTopicInputSection(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddTopic()}
-                placeholder="Add custom topic..."
-                className="flex-1 min-w-0 bg-input border border-border rounded-md px-9 py-6 text-xs focus-ring placeholder:text-muted-foreground" />
-              <button onClick={handleAddTopic} disabled={addingTopic || !newTopicInput.trim()}
-                className="p-6 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-smooth disabled:opacity-50 flex-shrink-0">
-                {addingTopic ? <span className="w-12 h-12 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin block" /> : <Icon name="PlusIcon" size={14} />}
-              </button>
+        <aside className="lab-sidebar border-r flex flex-col scrollbar-clean" style={{ width: 264 }}>
+
+          {/* Header */}
+          <div className="px-4 pt-4 pb-3 border-b border-border flex-shrink-0 space-y-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-teal-500/20">
+                <Icon name="EyeIcon" size={15} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-foreground tracking-tight">Computer Vision</h2>
+                <p className="text-[10px] text-muted-foreground leading-none mt-0.5">{allTopics.length} topics · {groupedSections.length} categories</p>
+              </div>
             </div>
+
+            {showAddSec ? (
+              <div className="flex gap-1.5">
+                <input autoFocus value={customSectionInput} onChange={e => setCustomSectionInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { handleAddCustomSection(); setShowAddSec(false); } if (e.key === 'Escape') { setShowAddSec(false); setCustomSectionInput(''); } }}
+                  placeholder="New category…"
+                  className="flex-1 min-w-0 bg-input border border-border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--lab-cv)]/50 placeholder:text-muted-foreground/50" />
+                <button onClick={() => { handleAddCustomSection(); setShowAddSec(false); }} disabled={addingSection || !customSectionInput.trim()}
+                  className="px-2.5 py-1.5 bg-[var(--lab-cv)] text-white rounded-lg text-xs font-medium hover:opacity-90 transition-all disabled:opacity-50">
+                  {addingSection ? '…' : 'Add'}
+                </button>
+                <button onClick={() => { setShowAddSec(false); setCustomSectionInput(''); }}
+                  className="px-2 py-1.5 text-muted-foreground hover:text-foreground text-xs rounded-lg hover:bg-muted transition-all">✕</button>
+              </div>
+            ) : (
+              <button onClick={() => setShowAddSec(true)}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 border border-dashed border-border rounded-lg text-xs text-muted-foreground hover:text-[var(--lab-cv)] hover:border-[var(--lab-cv)]/40 hover:bg-[var(--lab-cv-soft)] transition-all group">
+                <Icon name="PlusIcon" size={11} className="group-hover:text-[var(--lab-cv)] transition-colors" />
+                Add category / section
+              </button>
+            )}
           </div>
 
-          <div className="flex-1 overflow-y-auto py-6">
+          {/* Tree */}
+          <div className="flex-1 overflow-y-auto py-2 scrollbar-clean">
+
+            {/* Wiki Index */}
             <button onClick={() => selectTopic('wiki')}
-                className={`w-full text-left flex items-start gap-8 px-14 py-9 text-xs font-semibold transition-smooth hover:bg-muted ${selectedTopicId === 'wiki' ? 'bg-primary/10 text-primary border-r-2 border-primary' : 'text-foreground'}`}>
-                <Icon name="BookOpenIcon" size={12} className="flex-shrink-0 mt-3" />
-                <div className="flex-1 min-w-0">
-                  <span className="block truncate">Wiki Index</span>
-                  <div className="flex items-center gap-6 mt-2 flex-wrap">
-                    <span className="text-[9px] text-muted-foreground opacity-85 leading-none">
-                      Dynamic Content
-                    </span>
-                  </div>
-                </div>
+              className={`w-full flex items-center gap-2.5 px-3 py-2 mx-1 rounded-xl text-xs font-semibold transition-all my-0.5 ${selectedTopicId === 'wiki' ? 'bg-[var(--lab-cv-soft)] text-[var(--lab-cv)]' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'}`}
+              style={{ width: 'calc(100% - 8px)' }}>
+              <Icon name="BookOpenIcon" size={13} className={selectedTopicId === 'wiki' ? 'text-[var(--lab-cv)]' : ''} />
+              <span className="flex-1 text-left">Wiki Index</span>
+              {selectedTopicId === 'wiki' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--lab-cv)] flex-shrink-0" />}
             </button>
-            {groupedSections.map(section => (
-              <div key={section.name} className="mt-2">
-                <div className="flex items-center px-14 py-6 group cursor-pointer hover:bg-muted/50 transition-smooth" onClick={() => setExpandedSections(prev => { const n = new Set(prev); n.has(section.name) ? n.delete(section.name) : n.add(section.name); return n; })}>
-                  <Icon name={expandedSections.has(section.name) ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={12} className="text-muted-foreground mr-6 flex-shrink-0" />
-                  <span className="text-xs font-bold text-foreground uppercase tracking-wider flex-1 truncate">{section.name}</span>
-                  <button onClick={(e) => { e.stopPropagation(); setAddingTopicToSection(addingTopicToSection === section.name ? null : section.name); }}
-                    className="p-4 text-muted-foreground hover:text-foreground hover:bg-border rounded-full transition-smooth opacity-0 group-hover:opacity-100 flex-shrink-0">
-                    <Icon name="PlusIcon" size={12} />
-                  </button>
+
+            <div className="mx-3 my-2 h-px bg-border/60" />
+
+            {/* Sections */}
+            {groupedSections.map(section => {
+              const isExp = expandedSections.has(section.name);
+              return (
+                <div key={section.name} className="mb-0.5">
+                  {/* Section row */}
+                  <div className="flex items-center gap-1 px-2 py-1.5 mx-1 cursor-pointer group hover:bg-muted/40 rounded-lg transition-all"
+                    onClick={() => setExpandedSections(prev => { const n = new Set(prev); n.has(section.name) ? n.delete(section.name) : n.add(section.name); return n; })}>
+                    <Icon name={isExp ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={10} className="text-muted-foreground/60 flex-shrink-0 transition-transform duration-150" />
+                    <span className="flex-1 text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest truncate ml-0.5">
+                      {section.name}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground/40 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {section.topics.length}
+                    </span>
+                    <button
+                      onClick={e => { e.stopPropagation(); setAddingTopicToSection(addingTopicToSection === section.name ? null : section.name); setNewTopicInputSection(''); }}
+                      className="p-0.5 rounded-md text-muted-foreground/40 hover:text-[var(--lab-cv)] hover:bg-[var(--lab-cv-soft)] opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 ml-0.5"
+                      title="Add topic">
+                      <Icon name="PlusIcon" size={9} />
+                    </button>
+                  </div>
+
+                  {/* Add topic inline */}
+                  {addingTopicToSection === section.name && (
+                    <div className="mx-3 mb-1 flex gap-1">
+                      <input autoFocus value={newTopicInputSection} onChange={e => setNewTopicInputSection(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleAddTopicToSection(section.name); if (e.key === 'Escape') setAddingTopicToSection(null); }}
+                        placeholder="Topic name…"
+                        className="flex-1 min-w-0 bg-input border border-border rounded-md px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-[var(--lab-cv)]/40 placeholder:text-muted-foreground/50" />
+                      <button onClick={() => handleAddTopicToSection(section.name)} disabled={!newTopicInputSection.trim()}
+                        className="px-1.5 py-1 bg-[var(--lab-cv)]/20 text-[var(--lab-cv)] rounded-md text-[11px] hover:bg-[var(--lab-cv)]/30 disabled:opacity-40 transition-all">✓</button>
+                    </div>
+                  )}
+
+                  {/* Topics */}
+                  {isExp && (
+                    <div className="space-y-px pb-1">
+                      {section.topics.map((topic, ti) => {
+                        const isActive = selectedTopicId === topic.id && !selectedSubtopicId;
+                        const isTopExp = expandedTopics.has(topic.id);
+                        const ds = cvDiffStyle(topic.difficulty);
+                        return (
+                          <div key={topic.id}>
+                            {/* Topic row */}
+                            <div className="flex items-start mx-1">
+                              <button onClick={() => selectTopic(topic.id)}
+                                className={`flex-1 min-w-0 flex items-start gap-2 px-2.5 py-2 rounded-xl text-left transition-all ${isActive ? 'bg-[var(--lab-cv-soft)] shadow-sm' : 'hover:bg-muted/50'}`}>
+                                <span className={`flex-shrink-0 text-[9px] mt-0.5 w-4 text-right leading-none ${isActive ? 'text-[var(--lab-cv)]/80' : 'text-muted-foreground/30'}`}>
+                                  {ti + 1}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <span className={`block text-[12px] font-medium leading-tight truncate ${isActive ? 'text-[var(--lab-cv)]' : 'text-foreground/90'}`}>
+                                    {topic.name}
+                                  </span>
+                                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                    <span className={`text-[8px] px-1.5 py-0.5 rounded-md border font-bold leading-none ${ds.badge}`}>{topic.difficulty}</span>
+                                    <span className="text-[8px] text-muted-foreground/50 leading-none">{topic.category}</span>
+                                  </div>
+                                </div>
+                              </button>
+                              <button
+                                onClick={() => setExpandedTopics(prev => { const n = new Set(prev); n.has(topic.id) ? n.delete(topic.id) : n.add(topic.id); return n; })}
+                                className="flex-shrink-0 p-1.5 mt-0.5 rounded-lg text-muted-foreground/30 hover:text-muted-foreground hover:bg-muted/60 transition-all">
+                                <Icon name={isTopExp ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={9} />
+                              </button>
+                            </div>
+
+                            {/* Subtopics */}
+                            {isTopExp && (
+                              <div className="ml-9 mr-2 space-y-px mb-1">
+                                {topic.subtopics.map((sub, idx) => {
+                                  const isSubAct = selectedSubtopicId === sub.id;
+                                  return (
+                                    <button key={sub.id}
+                                      onClick={() => selectSubtopic(topic.id, sub.id)}
+                                      className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] leading-tight transition-all ${isSubAct ? 'bg-[var(--lab-cv-soft)] text-[var(--lab-cv)]' : 'text-muted-foreground/70 hover:text-foreground hover:bg-muted/40'}`}>
+                                      <span className={`text-[8px] mr-1.5 ${isSubAct ? 'text-[var(--lab-cv)]' : 'text-muted-foreground/30'}`}>
+                                        {(idx + 1).toString().padStart(2, '0')}
+                                      </span>
+                                      <span className="truncate">{sub.name}</span>
+                                    </button>
+                                  );
+                                })}
+                                {/* Add subtopic */}
+                                {addingSubtopicTo === topic.id ? (
+                                  <div className="flex gap-1 mt-1">
+                                    <input autoFocus value={newSubtopicInput} onChange={e => setNewSubtopicInput(e.target.value)}
+                                      onKeyDown={e => { if (e.key === 'Enter') handleAddSubtopic(topic.id); if (e.key === 'Escape') setAddingSubtopicTo(null); }}
+                                      placeholder="Subtopic…"
+                                      className="flex-1 min-w-0 bg-input border border-border rounded-md px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-[var(--lab-cv)]/40 placeholder:text-muted-foreground/50" />
+                                    <button onClick={() => handleAddSubtopic(topic.id)}
+                                      className="px-1.5 py-1 bg-[var(--lab-cv)]/20 text-[var(--lab-cv)] rounded-md text-[11px] hover:bg-[var(--lab-cv)]/30 transition-all">✓</button>
+                                  </div>
+                                ) : (
+                                  <button onClick={() => setAddingSubtopicTo(topic.id)}
+                                    className="w-full flex items-center gap-1.5 px-2 py-1 text-[9px] text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/30 rounded-lg transition-all">
+                                    <Icon name="PlusIcon" size={8} />
+                                    Add subtopic
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                {addingTopicToSection === section.name && (
-                  <div className="px-14 py-6 bg-muted/30 border-y border-border">
-                    <div className="flex gap-4">
-                      <input autoFocus value={newTopicInputSection} onChange={e => setNewTopicInputSection(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddTopicToSection(section.name)}
-                        placeholder="Add topic..."
-                        className="flex-1 min-w-0 bg-input border border-border rounded-sm px-6 py-4 text-[10px] focus-ring placeholder:text-muted-foreground" />
-                      <button onClick={() => handleAddTopicToSection(section.name)} disabled={!newTopicInput.trim()}
-                        className="p-4 bg-secondary text-secondary-foreground rounded-sm hover:bg-secondary/90 transition-smooth disabled:opacity-50 flex-shrink-0">
-                        <Icon name="PlusIcon" size={10} />
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {expandedSections.has(section.name) && (
-                  <div>
-                    {section.topics.map(topic => (
-              <div key={topic.id}>
-                <button onClick={() => selectTopic(topic.id)}
-                  className={`w-full text-left flex items-start gap-8 px-14 py-9 text-xs font-semibold transition-smooth hover:bg-muted ${selectedTopicId === topic.id && !selectedSubtopicId ? 'bg-primary/10 text-primary border-r-2 border-primary' : 'text-foreground'}`}>
-                  <Icon name="EyeIcon" size={12} className="flex-shrink-0 mt-3" />
-                  <div className="flex-1 min-w-0">
-                    <span className="block truncate">{topic.name}</span>
-                    <div className="flex items-center gap-6 mt-2 flex-wrap">
-                      <span className={`text-[9px] px-5 py-1 rounded font-medium leading-none ${diffColor(topic.difficulty)}`}>
-                        {topic.difficulty}
-                      </span>
-                      <span className="text-[9px] text-muted-foreground opacity-85 leading-none">
-                        {topic.category}
-                      </span>
-                    </div>
-                  </div>
-                  <button onClick={(e) => { e.stopPropagation(); setAddingSubtopicTo(addingSubtopicTo === topic.id ? null : topic.id); }}
-                    className="p-4 ml-2 text-muted-foreground hover:text-foreground hover:bg-border rounded-full transition-smooth flex-shrink-0">
-                    <Icon name="PlusIcon" size={10} />
-                  </button>
-                  <Icon name={expandedTopics.has(topic.id) ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={11} className="text-muted-foreground flex-shrink-0 mt-3 ml-2" />
-                </button>
-                {addingSubtopicTo === topic.id && (
-                  <div className="px-14 py-6 bg-muted/30 border-y border-border">
-                    <div className="flex gap-4">
-                      <input autoFocus value={newSubtopicInput} onChange={e => setNewSubtopicInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddSubtopic(topic.id)}
-                        placeholder="Add subtopic..."
-                        className="flex-1 min-w-0 bg-input border border-border rounded-sm px-6 py-4 text-[10px] focus-ring placeholder:text-muted-foreground" />
-                      <button onClick={() => handleAddSubtopic(topic.id)} disabled={!newSubtopicInput.trim()}
-                        className="p-4 bg-secondary text-secondary-foreground rounded-sm hover:bg-secondary/90 transition-smooth disabled:opacity-50 flex-shrink-0">
-                        <Icon name="PlusIcon" size={10} />
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {expandedTopics.has(topic.id) && topic.subtopics.length > 0 && (
-                  <div>
-                    {topic.subtopics.map(sub => (
-                      <button key={sub.id} onClick={() => selectSubtopic(topic.id, sub.id)}
-                        className={`w-full text-left flex flex-col pl-26 pr-14 py-8 text-xs transition-smooth hover:bg-muted ${selectedSubtopicId === sub.id ? 'bg-secondary/10 text-secondary border-r-2 border-secondary' : 'text-muted-foreground'}`}>
-                        <span className="font-medium truncate">↳ {sub.name}</span>
-                        <span className="text-[10px] opacity-70 truncate mt-1">{sub.brief}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </aside>
 
         {/* ── CENTER ────────────────────────────────────────────────────────── */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="lab-main scrollbar-clean">
           {selectedTopicId === 'wiki' ? (
-            <div className="p-20 space-y-14 max-w-4xl mx-auto">
-              <div className="bg-card border border-border rounded-lg p-20 shadow-sm text-center">
-                <Icon name="BookOpenIcon" size={42} className="text-primary mb-6 mx-auto" />
-                <h1 className="font-heading text-2xl font-bold text-foreground mb-4">CV Lab Wiki</h1>
-                <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-                  A dynamic, auto-generated reference guide constructed from all AI and user-generated Computer Vision topics.
-                </p>
-              </div>
-              <div className="space-y-12">
-                {groupedSections.map(section => (
-                  <div key={section.name} className="space-y-6">
-                    <h2 className="text-xl font-bold text-foreground border-b border-border pb-2 mt-8 mb-4">{section.name}</h2>
-                    {section.topics.map(t => (
-                  <div key={t.id} className="border border-border bg-card rounded-md p-14 shadow-sm">
-                    <div className="flex items-center gap-6 mb-4">
-                      <span className={`text-[10px] px-6 py-2 rounded font-semibold ${diffColor(t.difficulty)}`}>{t.difficulty}</span>
-                      <span className="text-[10px] bg-muted text-muted-foreground px-6 py-2 rounded">{t.category}</span>
-                    </div>
-                    <h2 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-6 cursor-pointer hover:text-primary transition-smooth" onClick={() => selectTopic(t.id)}>
-                      {t.name}
-                    </h2>
-                    <p className="text-sm text-muted-foreground mb-8">{t.brief}</p>
-                    
-                    {t.prerequisites.length > 0 && (
-                      <div className="mb-6">
-                        <span className="text-xs text-muted-foreground font-medium block mb-2">Prerequisites:</span>
-                        <div className="flex flex-wrap gap-4">
-                          {t.prerequisites.map(p => (
-                            <span key={p} className="text-[10px] bg-primary/5 text-primary border border-primary/10 px-4 py-1 rounded">{p}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="bg-background border border-border rounded-md p-6">
-                      <h3 className="text-xs font-semibold text-foreground mb-4 pl-4 border-l-2 border-primary">Subtopics</h3>
-                      {t.subtopics.length > 0 ? (
-                        <ul className="space-y-3">
-                          {t.subtopics.map(s => (
-                            <li key={s.id} className="text-sm flex flex-col gap-1 pl-4 cursor-pointer group" onClick={() => selectSubtopic(t.id, s.id)}>
-                              <span className="font-medium text-foreground group-hover:text-primary transition-smooth flex items-center gap-4">
-                                <Icon name="ChevronRightIcon" size={10} className="text-primary group-hover:scale-110 transition-transform" />
-                                {s.name}
-                              </span>
-                              <span className="text-xs text-muted-foreground pl-6 group-hover:text-foreground transition-smooth">{s.brief}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-xs text-muted-foreground italic pl-4">No subtopics added yet.</p>
-                      )}
-                    </div>
-                  </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </div>
+            <CVWikiIndex
+              groupedSections={groupedSections}
+              allTopics={allTopics}
+              onSelectTopic={selectTopic}
+              onSelectSub={selectSubtopic}
+            />
           ) : !currentTopic ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-24">
               <Icon name="EyeIcon" size={48} variant="outline" className="text-muted-foreground/30 mb-18" />
@@ -980,50 +1127,112 @@ export default function CVLabInteractive() {
               <p className="text-sm text-muted-foreground max-w-sm">Choose a topic from the sidebar. Content generates on-demand per section.</p>
             </div>
           ) : (
-            <div className="p-20 space-y-14">
-              {/* Header */}
-              <div className="bg-card border border-border rounded-lg p-20 shadow-sm">
-                <div className="flex items-center gap-9 mb-9">
-                  <span className="text-xs bg-primary/10 text-primary px-9 py-4 rounded-md">{currentTopic.category}</span>
-                  <span className={`text-xs px-9 py-4 rounded-md font-semibold ${diffColor(currentTopic.difficulty)}`}>{currentTopic.difficulty}</span>
-                  {currentSubtopic && <span className="text-xs bg-secondary/10 text-secondary px-9 py-4 rounded-md">Subtopic</span>}
-                </div>
-                <h1 className="font-heading text-2xl font-bold text-foreground mb-6">
-                  {currentSubtopic?.name ?? currentTopic.name}
-                </h1>
-                <p className="text-sm text-muted-foreground mb-12">{currentSubtopic?.brief ?? currentTopic.brief}</p>
-                {currentTopic.prerequisites.length > 0 && (
-                  <div className="flex flex-wrap gap-6">
-                    <span className="text-xs text-muted-foreground">Prerequisites:</span>
-                    {currentTopic.prerequisites.map(p => (
-                      <span key={p} className="text-xs px-9 py-4 rounded-md bg-muted text-muted-foreground">{p}</span>
-                    ))}
+            <div className="lab-container max-w-card space-y-5">
+              {/* ── Hero Topic Header ── */}
+              <div className="lab-hero relative overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(26,157,143,0.12),transparent_60%)] pointer-events-none" />
+                <div className="absolute bottom-0 right-0 w-48 h-48 bg-teal-500/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="relative">
+                  {/* Badges */}
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center flex-shrink-0 shadow shadow-teal-500/30 mr-1">
+                      <Icon name="EyeIcon" size={15} className="text-white" />
+                    </div>
+                    <span className="text-xs px-2.5 py-1 rounded-lg bg-[var(--lab-cv-soft)] text-[var(--lab-cv)] border border-[var(--lab-cv)]/20 font-medium leading-none">
+                      {currentTopic.category}
+                    </span>
+                    {(() => { const ds = cvDiffStyle(currentTopic.difficulty); return (
+                      <span className={`text-xs px-2.5 py-1 rounded-lg border font-semibold leading-none ${ds.badge}`}>
+                        {currentTopic.difficulty}
+                      </span>
+                    ); })()}
+                    {currentSubtopic && (
+                      <span className="text-xs px-2.5 py-1 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 leading-none">Subtopic</span>
+                    )}
+                    {currentTopic.isCustom && (
+                      <span className="text-xs px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 leading-none">Custom</span>
+                    )}
                   </div>
-                )}
+
+                  <h1 className="text-xl font-bold text-foreground mb-2 leading-snug tracking-tight">
+                    {currentSubtopic?.name ?? currentTopic.name}
+                  </h1>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {currentSubtopic?.brief ?? currentTopic.brief}
+                  </p>
+
+                  {currentTopic.prerequisites.length > 0 && (
+                    <div className="mt-3.5 flex flex-wrap gap-1.5 items-center">
+                      <span className="text-xs text-muted-foreground font-medium">Prereqs:</span>
+                      {currentTopic.prerequisites.map(p => (
+                        <span key={p} className="text-xs px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border">{p}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  {(() => {
+                    const genCount = SECTION_DEFS.filter(d => sections[d.id]?.generated).length;
+                    return genCount > 0 ? (
+                      <div className="mt-4">
+                        <div className="flex justify-between text-[10px] text-muted-foreground mb-1.5">
+                          <span>Sections generated</span>
+                          <span className="font-medium text-foreground/80">{genCount} / {SECTION_DEFS.length}</span>
+                        </div>
+                        <div className="h-1 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full transition-all duration-700 ease-out"
+                            style={{ width: `${(genCount / SECTION_DEFS.length) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
               </div>
 
-              {/* On-demand sections */}
-              {SECTION_DEFS.map((def, idx) => {
-                const s = sections[def.id] ?? { generated: false, generating: false, content: '' };
-                return (
-                  <OnDemandSection key={def.id} sectionIndex={idx + 1} icon={def.icon} title={def.label} subtitle={def.subtitle}
-                    content={s.content} isGenerated={s.generated} isGenerating={s.generating} onGenerate={() => generateSection(def.id)}>
-                    {def.id === 'quiz' && s.generated ? (
-                      <QuizCarousel questions={QUIZ_BANK.slice(quizBatch * 4, quizBatch * 4 + 4)} hasMore={true}
-                        onGenerateMore={() => setQuizBatch(b => b + 1)} />
-                    ) : undefined}
-                  </OnDemandSection>
-                );
-              })}
+              {/* ── Content Outline (quick-jump) ── */}
+              <div className="lab-card-muted p-4">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Content Outline</p>
+                <div className="grid grid-cols-3 gap-1">
+                  {SECTION_DEFS.map(def => {
+                    const s = sections[def.id];
+                    return (
+                      <a key={def.id} href={`#sec-${def.id}`}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] transition-all leading-tight ${s?.generated ? 'text-teal-400 bg-teal-500/10 hover:bg-teal-500/15' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s?.generated ? 'bg-teal-400' : s?.generating ? 'bg-blue-400 animate-pulse' : 'bg-muted-foreground/20'}`} />
+                        <span className="truncate">{def.label}</span>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
 
-              {/* Prev / Next */}
-              <div className="flex items-center justify-between py-18 border-t border-border mt-24">
+              {/* ── On-demand sections ── */}
+              <div className="space-y-4">
+                {SECTION_DEFS.map((def, idx) => {
+                  const s = sections[def.id] ?? { generated: false, generating: false, content: '' };
+                  return (
+                    <div key={def.id} id={`sec-${def.id}`} className="scroll-mt-4">
+                      <OnDemandSection sectionIndex={idx + 1} icon={def.icon} title={def.label} subtitle={def.subtitle}
+                        content={s.content} isGenerated={s.generated} isGenerating={s.generating} onGenerate={() => generateSection(def.id)}>
+                        {def.id === 'quiz' && s.generated ? (
+                          <QuizCarousel questions={QUIZ_BANK.slice(quizBatch * 4, quizBatch * 4 + 4)} hasMore={true}
+                            onGenerateMore={() => setQuizBatch(b => b + 1)} />
+                        ) : undefined}
+                      </OnDemandSection>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ── Prev / Next ── */}
+              <div className="flex items-center justify-between py-4 border-t border-border mt-2">
                 <button disabled={!prevItem} onClick={() => prevItem && navigateTo(prevItem)}
-                  className="flex items-center gap-9 px-16 py-10 rounded-md border border-border text-sm text-foreground hover:bg-muted transition-smooth disabled:opacity-30 disabled:pointer-events-none">
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all disabled:opacity-30 disabled:pointer-events-none">
                   <Icon name="ArrowLeftIcon" size={14} />{prevItem?.label ?? 'No previous'}
                 </button>
                 <button disabled={!nextItem} onClick={() => nextItem && navigateTo(nextItem)}
-                  className="flex items-center gap-9 px-16 py-10 rounded-md border border-border text-sm text-foreground hover:bg-muted transition-smooth disabled:opacity-30 disabled:pointer-events-none">
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all disabled:opacity-30 disabled:pointer-events-none">
                   {nextItem?.label ?? 'No next'}<Icon name="ArrowRightIcon" size={14} />
                 </button>
               </div>
@@ -1032,7 +1241,7 @@ export default function CVLabInteractive() {
         </main>
 
         {/* ── RIGHT: Copilot ─────────────────────────────────────────────── */}
-        <aside className="w-[280px] flex-shrink-0 border-l border-border flex flex-col">
+        <aside className="w-[300px] lab-copilot border-l flex flex-col">
           <LabCopilot context={contextLabel} labType="cv" />
         </aside>
       </div>

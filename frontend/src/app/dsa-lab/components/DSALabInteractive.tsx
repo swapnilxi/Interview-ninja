@@ -7,7 +7,9 @@ import OnDemandSection from '@/components/lab/OnDemandSection';
 import QuizCarousel from '@/components/lab/QuizCarousel';
 
 /* ─────────────────────────────────────────── types ──────────────────────── */
-interface DSATopic {
+import { STATIC_DSA_TOPICS } from './fallbackTopics';
+
+export interface DSATopic {
   id: string;
   name: string;
   brief: string;
@@ -17,32 +19,6 @@ interface DSATopic {
   subtopics: { id: string; name: string; brief: string }[];
   isCustom?: boolean;
 }
-const STATIC_DSA_TOPICS: DSATopic[] = [
-  {
-    id: "dsa-arrays-1",
-    name: "Two Pointers",
-    brief: "Use two pointers to iterate through an array or list to solve problems like Two Sum or detecting palindromes.",
-    category: "Arrays & Strings",
-    difficulty: "Medium",
-    prerequisites: ["Arrays", "Loops"],
-    subtopics: [
-      { id: "sub-1", name: "Two Sum II", brief: "Find two numbers in a sorted array that add up to a target." },
-      { id: "sub-2", name: "Container With Most Water", brief: "Find two lines that together with the x-axis form a container, such that the container contains the most water." }
-    ]
-  },
-  {
-    id: "dsa-trees-1",
-    name: "Depth-First Search (DFS)",
-    brief: "Traverse a tree or graph by exploring as far as possible along each branch before backtracking.",
-    category: "Trees & Graphs",
-    difficulty: "Medium",
-    prerequisites: ["Trees", "Recursion"],
-    subtopics: [
-      { id: "sub-3", name: "Maximum Depth of Binary Tree", brief: "Find the maximum depth of a binary tree." },
-      { id: "sub-4", name: "Lowest Common Ancestor", brief: "Find the lowest common ancestor of two nodes in a binary tree." }
-    ]
-  }
-];
 
 interface SectionState { generated: boolean; generating: boolean; content: string }
 
@@ -362,11 +338,11 @@ export default function DSALabInteractive() {
 
   /* ── render ── */
   return (
-    <div className="min-h-screen bg-background pt-[60px] flex flex-col">
-      <div className="flex-1 flex overflow-hidden" style={{ height: 'calc(100vh - 60px)' }}>
+    <div className="lab-shell flex flex-col">
+      <div className="lab-workspace flex">
 
         {/* ═══════════════════════ LEFT SIDEBAR ═══════════════════════════ */}
-        <aside className="flex-shrink-0 border-r border-border flex flex-col bg-card" style={{ width: 264 }}>
+        <aside className="lab-sidebar border-r flex flex-col scrollbar-clean" style={{ width: 264 }}>
 
           {/* Header */}
           <div className="px-4 pt-4 pb-3 border-b border-border flex-shrink-0 space-y-3">
@@ -403,15 +379,15 @@ export default function DSALabInteractive() {
           </div>
 
           {/* Tree */}
-          <div className="flex-1 overflow-y-auto py-2">
+          <div className="flex-1 overflow-y-auto py-2 scrollbar-clean">
 
             {/* Wiki Index */}
             <button onClick={() => selectTopic('wiki')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 mx-1 rounded-xl text-xs font-semibold transition-all my-0.5 ${selectedTopicId === 'wiki' ? 'bg-blue-500/15 text-blue-400' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'}`}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 mx-1 rounded-xl text-xs font-semibold transition-all my-0.5 ${selectedTopicId === 'wiki' ? 'bg-[var(--lab-dsa-soft)] text-[var(--lab-dsa)]' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'}`}
               style={{ width: 'calc(100% - 8px)' }}>
               <Icon name="BookOpenIcon" size={13} className={selectedTopicId === 'wiki' ? 'text-blue-400' : ''} />
               <span className="flex-1 text-left">Wiki Index</span>
-              {selectedTopicId === 'wiki' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />}
+              {selectedTopicId === 'wiki' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--lab-dsa)] flex-shrink-0" />}
             </button>
 
             <div className="mx-3 my-2 h-px bg-border/60" />
@@ -425,7 +401,7 @@ export default function DSALabInteractive() {
                   <div className="flex items-center gap-1 px-2 py-1.5 mx-1 cursor-pointer group hover:bg-muted/40 rounded-lg transition-all"
                     onClick={() => setExpandedSecs(prev => { const n = new Set(prev); n.has(section.name) ? n.delete(section.name) : n.add(section.name); return n; })}>
                     <Icon name={isExp ? 'ChevronDownIcon' : 'ChevronRightIcon'} size={10} className="text-muted-foreground/60 flex-shrink-0 transition-transform duration-150" />
-                    <span className="flex-1 text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest truncate ml-0.5">
+                    <span className="flex-1 text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest truncate ml-0.5">
                       {section.name}
                     </span>
                     <span className="text-[9px] text-muted-foreground/40 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -445,9 +421,9 @@ export default function DSALabInteractive() {
                       <input autoFocus value={newTopicInput} onChange={e => setNewTopicInput(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') handleAddTopic(section.name); if (e.key === 'Escape') setAddingTopicTo(null); }}
                         placeholder="Topic name…"
-                        className="flex-1 min-w-0 bg-input border border-border rounded-md px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground/50" />
+                        className="flex-1 min-w-0 bg-input border border-border rounded-md px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground/50" />
                       <button onClick={() => handleAddTopic(section.name)} disabled={addingTopic || !newTopicInput.trim()}
-                        className="px-1.5 py-1 bg-primary/20 text-primary rounded-md text-[10px] hover:bg-primary/30 disabled:opacity-40 transition-all">✓</button>
+                        className="px-1.5 py-1 bg-primary/20 text-primary rounded-md text-[11px] hover:bg-primary/30 disabled:opacity-40 transition-all">✓</button>
                     </div>
                   )}
 
@@ -465,18 +441,18 @@ export default function DSALabInteractive() {
                             {/* Topic row */}
                             <div className="flex items-start mx-1">
                               <button onClick={() => selectTopic(topic.id)}
-                                className={`flex-1 min-w-0 flex items-start gap-2 px-2.5 py-2 rounded-xl text-left transition-all ${isActive ? 'bg-blue-500/12 shadow-sm' : 'hover:bg-muted/50'}`}>
+                                className={`flex-1 min-w-0 flex items-start gap-2 px-2.5 py-2 rounded-xl text-left transition-all ${isActive ? 'bg-[var(--lab-dsa-soft)] shadow-sm' : 'hover:bg-muted/50'}`}>
                                 <span className={`flex-shrink-0 text-[9px] mt-0.5 w-4 text-right leading-none ${isActive ? 'text-blue-400/80' : 'text-muted-foreground/30'}`}>
                                   {ti + 1}
                                 </span>
                                 <div className="flex-1 min-w-0">
-                                  <span className={`block text-[11px] font-medium leading-tight truncate ${isActive ? 'text-blue-300' : 'text-foreground/90'}`}>
+                                  <span className={`block text-[12px] font-medium leading-tight truncate ${isActive ? 'text-[var(--lab-dsa)]' : 'text-foreground/90'}`}>
                                     {topic.name}
                                   </span>
                                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                     {lc && <span className="text-[9px] text-muted-foreground/50 leading-none">{lc}</span>}
                                     <span className={`text-[8px] px-1.5 py-0.5 rounded-md border font-bold leading-none ${ds.badge}`}>{topic.difficulty}</span>
-                                    {topic.isCustom && <span className="text-[8px] text-amber-400/70">custom</span>}
+                                    {topic.isCustom && <span className="text-[8px] text-amber-500/80">custom</span>}
                                   </div>
                                 </div>
                               </button>
@@ -494,8 +470,8 @@ export default function DSALabInteractive() {
                                   const isSubAct = selectedSubId === sub.id;
                                   return (
                                     <button key={sub.id} onClick={() => selectSub(topic.id, sub.id)}
-                                      className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[10px] leading-tight transition-all ${isSubAct ? 'bg-violet-500/15 text-violet-300' : 'text-muted-foreground/70 hover:text-foreground hover:bg-muted/40'}`}>
-                                      <span className={`text-[8px] mr-1.5 ${isSubAct ? 'text-violet-400/80' : 'text-muted-foreground/30'}`}>
+                                      className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] leading-tight transition-all ${isSubAct ? 'bg-[var(--lab-dsa-soft)] text-[var(--lab-dsa)]' : 'text-muted-foreground/70 hover:text-foreground hover:bg-muted/40'}`}>
+                                      <span className={`text-[8px] mr-1.5 ${isSubAct ? 'text-[var(--lab-dsa)]' : 'text-muted-foreground/30'}`}>
                                         {(idx + 1).toString().padStart(2, '0')}
                                       </span>
                                       <span className="truncate">{sub.name}</span>
@@ -533,7 +509,7 @@ export default function DSALabInteractive() {
         </aside>
 
         {/* ═══════════════════════ CENTER PANEL ═══════════════════════════ */}
-        <main ref={mainRef} className="flex-1 overflow-y-auto bg-background">
+        <main ref={mainRef} className="lab-main scrollbar-clean">
           {selectedTopicId === 'wiki' ? (
             <WikiIndex grouped={grouped} topics={topics} onSelectTopic={selectTopic} onSelectSub={selectSub} />
           ) : !currentTopic ? (
@@ -559,7 +535,7 @@ export default function DSALabInteractive() {
         </main>
 
         {/* ═══════════════════════ RIGHT COPILOT ══════════════════════════ */}
-        <aside className="flex-shrink-0 border-l border-border flex flex-col bg-card" style={{ width: 280 }}>
+        <aside className="lab-copilot border-l flex flex-col" style={{ width: 300 }}>
           <LabCopilot context={contextLabel} labType="dsa" />
         </aside>
       </div>
@@ -583,10 +559,10 @@ function WikiIndex({
   const easyCount   = topics.filter(t => t.difficulty === 'Easy' || t.difficulty === 'Easy-Medium').length;
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+    <div className="lab-container space-y-10">
 
       {/* ── Hero banner ── */}
-      <div className="relative overflow-hidden rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 via-violet-500/5 to-transparent p-8">
+      <div className="lab-hero p-8">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.18),transparent_60%)] pointer-events-none" />
         <div className="absolute bottom-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="relative">
@@ -617,7 +593,7 @@ function WikiIndex({
       </div>
 
       {/* ── Clickable Pattern Index ── */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="lab-card overflow-hidden">
         <div className="px-5 py-3 border-b border-border bg-muted/20 flex items-center gap-2">
           <Icon name="ListBulletIcon" size={14} className="text-muted-foreground" />
           <span className="text-xs font-bold text-foreground uppercase tracking-wider">Pattern Index</span>
@@ -647,19 +623,19 @@ function WikiIndex({
             <span className="text-[10px] text-muted-foreground flex-shrink-0">{section.topics.length} topics</span>
           </div>
 
-          <div className="grid grid-cols-1 gap-2.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-5 gap-y-6">
             {section.topics.map(t => {
               const { lc, hint } = parseBrief(t.brief);
               const ds = diffStyle(t.difficulty);
               return (
                 <div key={t.id}
-                  className="group relative border border-border rounded-xl bg-card hover:border-blue-500/30 hover:shadow-md hover:shadow-blue-500/5 transition-all duration-200 overflow-hidden cursor-pointer"
+                    className={`display-card group relative overflow-hidden cursor-pointer h-full`}
                   onClick={() => onSelectTopic(t.id)}>
                   {/* Diff accent */}
                   <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${ds.bar} opacity-40 group-hover:opacity-80 transition-opacity rounded-l-xl`} />
                   <div className="pl-4 pr-4 pt-3.5 pb-3">
                     <div className="flex items-start justify-between gap-3 mb-1.5">
-                      <h3 className="text-sm font-semibold text-foreground group-hover:text-blue-300 transition-colors leading-snug flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold text-foreground group-hover:text-[var(--wiki-dsa-hover)] dark:group-hover:text-[var(--wiki-dsa-hover)] transition-colors leading-snug flex-1 min-w-0">
                         {t.name}
                       </h3>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -718,10 +694,10 @@ function TopicDetail({
   const genCount = Object.values(sections).filter(s => s.generated).length;
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8 space-y-5">
+    <div className="lab-container max-w-card space-y-5">
 
       {/* ── Header card ── */}
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-sm">
+      <div className="lab-hero">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.07),transparent_55%)] pointer-events-none" />
         <div className="relative">
           {/* Badges */}
@@ -781,7 +757,7 @@ function TopicDetail({
       </div>
 
       {/* ── Content outline (quick-jump) ── */}
-      <div className="rounded-xl border border-border bg-card/60 p-4">
+      <div className="lab-card-muted p-4">
         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Content Outline</p>
         <div className="grid grid-cols-3 gap-1">
           {SECTION_DEFS.map(def => {

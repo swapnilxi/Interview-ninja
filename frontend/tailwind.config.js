@@ -1,3 +1,5 @@
+const ui = require('./config');
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ['class'],
@@ -22,70 +24,83 @@ module.exports = {
     },
     extend: {
       colors: {
-        border: 'var(--color-border)', // slate-400 with opacity
-        input: 'var(--color-input)', // slate-800
-        ring: 'var(--color-ring)', // blue-600
-        background: 'var(--color-background)', // slate-900
-        foreground: 'var(--color-foreground)', // slate-50
+        border: 'var(--color-border)',
+        input: 'var(--color-input)',
+        ring: 'var(--color-ring)',
+        background: 'var(--color-background)',
+        foreground: 'var(--color-foreground)',
+        surface: 'var(--color-surface)',
+        elevated: 'var(--color-elevated)',
+        subtle: 'var(--color-subtle)',
         primary: {
-          DEFAULT: 'var(--color-primary)', // blue-600
-          foreground: 'var(--color-primary-foreground)', // white
+          DEFAULT: 'var(--color-primary)',
+          foreground: 'var(--color-primary-foreground)',
         },
         secondary: {
-          DEFAULT: 'var(--color-secondary)', // violet-600
-          foreground: 'var(--color-secondary-foreground)', // white
+          DEFAULT: 'var(--color-secondary)',
+          foreground: 'var(--color-secondary-foreground)',
         },
         accent: {
-          DEFAULT: 'var(--color-accent)', // amber-500
-          foreground: 'var(--color-accent-foreground)', // gray-800
+          DEFAULT: 'var(--color-accent)',
+          foreground: 'var(--color-accent-foreground)',
         },
         destructive: {
-          DEFAULT: 'var(--color-destructive)', // red-500
-          foreground: 'var(--color-destructive-foreground)', // white
+          DEFAULT: 'var(--color-destructive)',
+          foreground: 'var(--color-destructive-foreground)',
         },
         success: {
-          DEFAULT: 'var(--color-success)', // emerald-500
-          foreground: 'var(--color-success-foreground)', // white
+          DEFAULT: 'var(--color-success)',
+          foreground: 'var(--color-success-foreground)',
         },
         warning: {
-          DEFAULT: 'var(--color-warning)', // amber-500
-          foreground: 'var(--color-warning-foreground)', // gray-800
+          DEFAULT: 'var(--color-warning)',
+          foreground: 'var(--color-warning-foreground)',
         },
         error: {
-          DEFAULT: 'var(--color-error)', // red-500
-          foreground: 'var(--color-error-foreground)', // white
+          DEFAULT: 'var(--color-error)',
+          foreground: 'var(--color-error-foreground)',
         },
         muted: {
-          DEFAULT: 'var(--color-muted)', // slate-700
-          foreground: 'var(--color-muted-foreground)', // slate-400
+          DEFAULT: 'var(--color-muted)',
+          foreground: 'var(--color-muted-foreground)',
         },
         card: {
-          DEFAULT: 'var(--color-card)', // slate-800
-          foreground: 'var(--color-card-foreground)', // slate-100
+          DEFAULT: 'var(--color-card)',
+          foreground: 'var(--color-card-foreground)',
         },
         popover: {
-          DEFAULT: 'var(--color-popover)', // slate-800
-          foreground: 'var(--color-popover-foreground)', // slate-100
+          DEFAULT: 'var(--color-popover)',
+          foreground: 'var(--color-popover-foreground)',
+        },
+        lab: {
+          dsa: 'var(--lab-dsa)',
+          cv: 'var(--lab-cv)',
+          system: 'var(--lab-system)',
         },
       },
       borderRadius: {
-        sm: 'var(--radius-sm)',
-        md: 'var(--radius-md)',
-        lg: 'var(--radius-lg)',
-        xl: 'var(--radius-xl)',
+        sm: ui.radius.sm,
+        md: ui.radius.md,
+        lg: ui.radius.lg,
+        xl: ui.radius.xl,
       },
       boxShadow: {
-        sm: 'var(--shadow-sm)',
-        md: 'var(--shadow-md)',
-        lg: 'var(--shadow-lg)',
-        xl: 'var(--shadow-xl)',
-        glow: 'var(--shadow-glow)',
+        sm: ui.shadow.sm,
+        md: ui.shadow.md,
+        lg: ui.shadow.lg,
+        glow: ui.shadow.glow,
+        card: ui.shadow.card,
       },
       fontFamily: {
-        heading: ['Plus Jakarta Sans', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-        body:    ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
-        caption: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-        code:    ['Fira Code', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+        heading: ui.fonts.display,
+        body: ui.fonts.sans,
+        caption: ui.fonts.sans,
+        code: ui.fonts.code,
+        sans: ui.fonts.sans,
+      },
+      maxWidth: {
+        readable: ui.layout.readableWidth,
+        card: ui.layout.cardMaxWidth,
       },
       spacing: {
         '6': '6px',

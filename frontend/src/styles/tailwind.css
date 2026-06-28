@@ -1,6 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,450;14..32,500;14..32,600;14..32,700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Fira+Code:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -8,112 +6,270 @@
 
 @layer base {
   :root {
-    /* Primary Colors */
-    --color-primary: #2563EB; /* blue-600 */
-    --color-primary-foreground: #FFFFFF; /* white */
-    
-    /* Secondary Colors */
-    --color-secondary: #7C3AED; /* violet-600 */
-    --color-secondary-foreground: #FFFFFF; /* white */
-    
-    /* Accent Colors */
-    --color-accent: #F59E0B; /* amber-500 */
-    --color-accent-foreground: #1F2937; /* gray-800 */
-    
-    /* Background Colors */
-    --color-background: #0F172A; /* slate-900 */
-    --color-foreground: #F8FAFC; /* slate-50 */
-    
-    /* Surface Colors */
-    --color-card: #1E293B; /* slate-800 */
-    --color-card-foreground: #F1F5F9; /* slate-100 */
-    
-    --color-popover: #1E293B; /* slate-800 */
-    --color-popover-foreground: #F1F5F9; /* slate-100 */
-    
-    /* Muted Colors */
-    --color-muted: #334155; /* slate-700 */
-    --color-muted-foreground: #94A3B8; /* slate-400 */
-    
-    /* Border & Input */
-    --color-border: rgba(148, 163, 184, 0.2); /* slate-400 with opacity */
-    --color-input: #1E293B; /* slate-800 */
-    --color-ring: #2563EB; /* blue-600 */
-    
-    /* Status Colors */
-    --color-success: #10B981; /* emerald-500 */
-    --color-success-foreground: #FFFFFF; /* white */
-    
-    --color-warning: #F59E0B; /* amber-500 */
-    --color-warning-foreground: #1F2937; /* gray-800 */
-    
-    --color-error: #EF4444; /* red-500 */
-    --color-error-foreground: #FFFFFF; /* white */
-    
-    --color-destructive: #EF4444; /* red-500 */
-    --color-destructive-foreground: #FFFFFF; /* white */
-    
-    /* Radius */
+    color-scheme: light;
+    --color-background: #f7f3ec;
+    --color-foreground: #24201b;
+    --color-card: #fffaf2;
+    --color-card-foreground: #24201b;
+    --color-popover: #fffaf2;
+    --color-popover-foreground: #24201b;
+    --color-primary: #5b5bd6;
+    --color-primary-foreground: #ffffff;
+    --color-secondary: #127c7a;
+    --color-secondary-foreground: #ffffff;
+    --color-accent: #b36b17;
+    --color-accent-foreground: #fffaf2;
+    --color-muted: #eee6da;
+    --color-muted-foreground: #71695f;
+    --color-border: rgba(64, 55, 45, 0.15);
+    --color-input: #fffdf8;
+    --color-ring: #6d6be8;
+    --color-success: #14845f;
+    --color-success-foreground: #ffffff;
+    --color-warning: #a45d12;
+    --color-warning-foreground: #fffaf2;
+    --color-error: #c24151;
+    --color-error-foreground: #ffffff;
+    --color-destructive: #c24151;
+    --color-destructive-foreground: #ffffff;
+    --color-sidebar: #f0e8dc;
+    --color-surface: #fbf4ea;
+    --color-elevated: #ffffff;
+    --color-subtle: #e7dfd2;
+    --color-glow: rgba(91, 91, 214, 0.16);
+    /* Lab accent colors – light */
+    --lab-dsa: #6d6be8;
+    --lab-cv: #1a9d8f;
+    --lab-system: #b36b17;
+    --lab-dsa-soft: rgba(109, 107, 232, 0.12);
+    --lab-cv-soft: rgba(26, 157, 143, 0.13);
+    --lab-system-soft: rgba(179, 107, 23, 0.13);
+    /* Wiki index per-lab hover colors (darker for light mode readability) */
+    --wiki-dsa-hover: #4040c0;
+    --wiki-cv-hover: #0f6b62;
+    --wiki-system-hover: #8a4f0e;
+    /* Card accent bar opacity ramp */
+    --card-bar-idle: 0.35;
+    --card-bar-hover: 0.75;
     --radius-sm: 6px;
-    --radius-md: 12px;
-    --radius-lg: 18px;
-    --radius-xl: 24px;
-    
-    /* Shadows */
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
-    --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.6);
-    --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.15);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
   }
-  
+
+  .dark {
+    color-scheme: dark;
+    --color-background: #181511;
+    --color-foreground: #f4efe7;
+    --color-card: #211d18;
+    --color-card-foreground: #f4efe7;
+    --color-popover: #252019;
+    --color-popover-foreground: #f4efe7;
+    --color-primary: #8f8cf7;
+    --color-primary-foreground: #17131f;
+    --color-secondary: #5fc6bd;
+    --color-secondary-foreground: #10201f;
+    --color-accent: #f1ad55;
+    --color-accent-foreground: #25190b;
+    --color-muted: #302a22;
+    --color-muted-foreground: #b9ad9f;
+    --color-border: rgba(255, 246, 235, 0.13);
+    --color-input: #29231c;
+    --color-ring: #a9a5ff;
+    --color-success: #54c79a;
+    --color-success-foreground: #0e2119;
+    --color-warning: #f4b75e;
+    --color-warning-foreground: #25190b;
+    --color-error: #fb7185;
+    --color-error-foreground: #2b1015;
+    --color-destructive: #fb7185;
+    --color-destructive-foreground: #2b1015;
+    --color-sidebar: #1d1914;
+    --color-surface: #211d18;
+    --color-elevated: #29231c;
+    --color-subtle: #383026;
+    --color-glow: rgba(143, 140, 247, 0.22);
+    /* Lab accent colors – dark */
+    --lab-dsa: #8f8cf7;
+    --lab-cv: #5fc6bd;
+    --lab-system: #f1ad55;
+    --lab-dsa-soft: rgba(143, 140, 247, 0.14);
+    --lab-cv-soft: rgba(95, 198, 189, 0.13);
+    --lab-system-soft: rgba(241, 173, 85, 0.14);
+    /* Wiki index per-lab hover colors (lighter for dark mode) */
+    --wiki-dsa-hover: #a8a6ff;
+    --wiki-cv-hover: #7ad8d0;
+    --wiki-system-hover: #ffc87a;
+    --card-bar-idle: 0.45;
+    --card-bar-hover: 0.90;
+  }
+
   * {
     @apply border-border;
   }
-  
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    @apply bg-background text-foreground font-body;
+    min-height: 100vh;
     font-size: 16px;
-    line-height: 1.6;
+    line-height: 1.62;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    letter-spacing: 0;
+    text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
-    letter-spacing: -0.02em;
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent 34%),
+      radial-gradient(circle at 15% 0%, rgba(91, 91, 214, 0.10), transparent 30%),
+      radial-gradient(circle at 85% 10%, rgba(18, 124, 122, 0.09), transparent 28%);
   }
-  
+
+  .dark body::before {
+    background:
+      linear-gradient(180deg, rgba(255, 240, 220, 0.03), transparent 40%),
+      radial-gradient(circle at 20% 0%, rgba(143, 140, 247, 0.11), transparent 30%),
+      radial-gradient(circle at 90% 10%, rgba(95, 198, 189, 0.08), transparent 26%);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading text-foreground;
+    letter-spacing: 0;
+  }
+
   h1 {
-    @apply text-4xl leading-tight font-semibold;
+    @apply text-4xl leading-tight font-bold;
   }
-  
+
   h2 {
-    @apply text-3xl leading-snug font-semibold;
+    @apply text-3xl leading-snug font-bold;
   }
-  
+
   h3 {
-    @apply text-2xl leading-normal font-medium;
+    @apply text-2xl leading-normal font-semibold;
   }
-  
+
   h4 {
-    @apply text-xl leading-relaxed font-medium;
+    @apply text-xl leading-relaxed font-semibold;
   }
-  
-  h5 {
-    @apply text-lg leading-normal font-normal;
+
+  p {
+    color: color-mix(in srgb, var(--color-foreground) 90%, transparent);
   }
-  
-  code, pre {
-    font-family: 'Fira Code', 'Menlo', 'Monaco', 'Consolas', monospace;
-    font-feature-settings: 'liga' 1, 'calt' 1;
+
+  code,
+  pre {
+    @apply font-code;
   }
-  
-  small, .caption {
-    font-family: 'Inter', sans-serif;
-    @apply text-sm leading-relaxed;
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-primary) 26%, transparent);
+  }
+}
+
+@layer components {
+  .app-header {
+    @apply fixed left-0 right-0 top-0 z-[100] border-b border-border shadow-sm backdrop-blur-xl;
+    background: color-mix(in srgb, var(--color-card) 90%, transparent);
+  }
+
+  .app-nav-link {
+    @apply flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-smooth hover:bg-muted hover:text-foreground;
+  }
+
+  .app-nav-link-active {
+    @apply bg-primary text-primary-foreground shadow-glow hover:bg-primary hover:text-primary-foreground;
+  }
+
+  .theme-toggle {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-smooth hover:bg-muted hover:text-foreground focus-ring;
+    background: color-mix(in srgb, var(--color-muted) 60%, transparent);
+  }
+
+  .lab-shell {
+    @apply min-h-screen bg-background pt-[60px] text-foreground;
+  }
+
+  .lab-workspace {
+    @apply flex-1 overflow-hidden;
+    height: calc(100vh - 60px);
+  }
+
+  .lab-sidebar {
+    @apply flex-shrink-0 border-border bg-[var(--color-sidebar)] text-foreground;
+  }
+
+  .lab-main {
+    @apply flex-1 overflow-y-auto bg-background;
+  }
+
+  .lab-copilot {
+    @apply flex-shrink-0 border-border bg-card;
+  }
+
+  .lab-container {
+    @apply mx-auto w-full max-w-readable px-5 py-7 sm:px-8 sm:py-9;
+  }
+
+  .lab-card {
+    @apply rounded-lg border border-border bg-card text-card-foreground shadow-card;
+  }
+
+  .lab-card-muted {
+    @apply rounded-lg border border-border text-card-foreground;
+    background: color-mix(in srgb, var(--color-card) 70%, transparent);
+  }
+
+  .lab-hero {
+    @apply relative overflow-hidden rounded-lg border border-border bg-card p-6 shadow-card;
+  }
+
+  .lab-hero::before {
+    content: '';
+    @apply pointer-events-none absolute inset-0;
+    background:
+      linear-gradient(135deg, var(--lab-dsa-soft), transparent 42%),
+      radial-gradient(circle at 95% 10%, color-mix(in srgb, var(--color-primary) 18%, transparent), transparent 34%);
+  }
+
+  .lab-section-title {
+    @apply text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground;
+  }
+
+  .lab-topic-row {
+    @apply rounded-lg transition-smooth hover:bg-muted;
+  }
+
+  .lab-pill {
+    @apply inline-flex items-center rounded-md border border-border bg-muted px-2 py-1 text-xs font-medium text-muted-foreground;
+  }
+
+  .display-card {
+    @apply rounded-lg border border-border bg-card shadow-card transition-smooth hover:-translate-y-0.5 hover:shadow-glow;
+    /* Border brightens on hover using primary; works in both light & dark */
+    &:hover {
+      border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border));
+    }
+  }
+
+  .reading-card {
+    @apply rounded-lg border border-border bg-card p-5 shadow-card;
   }
 }
 
@@ -121,16 +277,33 @@
   .text-balance {
     text-wrap: balance;
   }
-  
+
   .transition-smooth {
-    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease, opacity 180ms ease, transform 180ms ease;
   }
-  
+
   .focus-ring {
     @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background;
   }
-  
+
   .shadow-glow {
-    box-shadow: var(--shadow-glow);
+    box-shadow: 0 0 0 1px var(--color-border), 0 12px 30px var(--color-glow);
+  }
+
+  .scrollbar-clean {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-subtle) transparent;
+  }
+
+  .scrollbar-clean::-webkit-scrollbar {
+    height: 10px;
+    width: 10px;
+  }
+
+  .scrollbar-clean::-webkit-scrollbar-thumb {
+    background: var(--color-subtle);
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
   }
 }

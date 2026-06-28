@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
@@ -49,9 +49,83 @@ const navigationItems: NavigationItem[] = [
   },
 ];
 
+function SystemStatus() {
+  const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [dbStatus, setDbStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      // Check API
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch('http://localhost:8000/health', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        setApiStatus(res.ok ? 'online' : 'offline');
+      } catch (err) {
+        setApiStatus('offline');
+      }
+
+      // Check DB
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch('http://localhost:8000/settings', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        setDbStatus(res.ok ? 'online' : 'offline');
+      } catch (err) {
+        setDbStatus('offline');
+      }
+    };
+    
+    checkStatus();
+    const interval = setInterval(checkStatus, 15000); // Check every 15 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  const StatusIndicator = ({ label, status }: { label: string, status: string }) => (
+    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/50 border border-border text-[10px] font-medium">
+      <span className="text-muted-foreground uppercase tracking-wider">{label}</span>
+      <div className="flex items-center gap-1">
+        {status === 'checking' ? (
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+        ) : status === 'online' ? (
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+        ) : (
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
+        )}
+        <span className={status === 'online' ? 'text-emerald-500' : status === 'offline' ? 'text-rose-500' : 'text-amber-500'}>
+          {status === 'checking' ? 'CHK' : status === 'online' ? 'ON' : 'OFF'}
+        </span>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex items-center gap-2 mr-4">
+      <StatusIndicator label="API" status={apiStatus} />
+      <StatusIndicator label="DB" status={dbStatus} />
+    </div>
+  );
+}
+
 export default function Header() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark' | null>(null);
+
+  useEffect(() => {
+    const storedTheme = localStorage.getItem('interview-ninja-theme') as 'light' | 'dark' | null;
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const initialTheme = storedTheme ?? (prefersDark ? 'dark' : 'light');
+    setTheme(initialTheme);
+    document.documentElement.classList.toggle('dark', initialTheme === 'dark');
+  }, []);
+
+  // Derive resolved theme: if state not yet hydrated, read from DOM
+  const resolvedTheme: 'light' | 'dark' = theme ?? (
+    typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+  );
 
   const isActivePath = (path: string) => {
     return pathname === path;
@@ -65,18 +139,25 @@ export default function Header() {
     setMobileMenuOpen(false);
   };
 
+  const toggleTheme = () => {
+    const nextTheme = resolvedTheme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('interview-ninja-theme', nextTheme);
+    document.documentElement.classList.toggle('dark', nextTheme === 'dark');
+  };
+
   return (
-    <header className="fixed top-0 left-0 right-0 z-[100] bg-card shadow-md">
-      <nav className="h-[60px] px-24 flex items-center justify-between">
+    <header className="app-header">
+      <nav className="h-[60px] px-4 sm:px-6 xl:px-8 flex items-center justify-between gap-4">
         <Link 
           href="/daily-session" 
-          className="flex items-center gap-12 transition-smooth hover:opacity-80"
+          className="flex items-center gap-3 transition-smooth hover:opacity-85"
           onClick={closeMobileMenu}
         >
-          <div className="flex items-center gap-12">
+          <div className="flex items-center gap-3">
             <svg
-              width="40"
-              height="40"
+              width="36"
+              height="36"
               viewBox="0 0 40 40"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
@@ -117,58 +198,70 @@ export default function Header() {
           </div>
         </Link>
 
-        <div className="hidden lg:flex items-center gap-6">
+        <div className="hidden lg:flex items-center gap-2">
+          <SystemStatus />
           {navigationItems.map((item) => (
             <Link
               key={item.path}
               href={item.path}
-              className={`
-                flex items-center gap-6 px-18 py-12 rounded-md
-                transition-smooth font-medium text-sm
-                ${
+              className={`app-nav-link ${
                   isActivePath(item.path)
-                    ? 'bg-primary text-primary-foreground shadow-glow'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }
-              `}
+                    ? 'app-nav-link-active'
+                    : ''
+                }`}
             >
-              <Icon name={item.icon as any} size={20} variant="outline" />
+              <Icon name={item.icon as any} size={18} variant="outline" />
               <span>{item.label}</span>
             </Link>
           ))}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="theme-toggle ml-2"
+            aria-label={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} theme`}
+            title={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} theme`}
+          >
+            <Icon name={resolvedTheme === 'dark' ? 'SunIcon' : 'MoonIcon'} size={18} />
+          </button>
         </div>
 
-        <button
-          onClick={toggleMobileMenu}
-          className="lg:hidden p-12 rounded-md hover:bg-muted transition-smooth focus-ring"
-          aria-label="Toggle mobile menu"
-          aria-expanded={mobileMenuOpen}
-        >
-          <Icon
-            name={mobileMenuOpen ? 'XMarkIcon' : 'Bars3Icon'}
-            size={24}
-            variant="outline"
-          />
-        </button>
+        <div className="flex items-center gap-2 lg:hidden">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="theme-toggle"
+            aria-label={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} theme`}
+          >
+            <Icon name={resolvedTheme === 'dark' ? 'SunIcon' : 'MoonIcon'} size={18} />
+          </button>
+          <button
+            onClick={toggleMobileMenu}
+            className="theme-toggle"
+            aria-label="Toggle mobile menu"
+            aria-expanded={mobileMenuOpen}
+          >
+            <Icon
+              name={mobileMenuOpen ? 'XMarkIcon' : 'Bars3Icon'}
+              size={22}
+              variant="outline"
+            />
+          </button>
+        </div>
       </nav>
 
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-card border-t border-border">
-          <div className="px-24 py-18 flex flex-col gap-6">
+        <div className="lg:hidden bg-card/95 border-t border-border backdrop-blur-xl">
+          <div className="px-4 py-3 flex flex-col gap-1">
             {navigationItems.map((item) => (
               <Link
                 key={item.path}
                 href={item.path}
                 onClick={closeMobileMenu}
-                className={`
-                  flex items-center gap-12 px-18 py-12 rounded-md
-                  transition-smooth font-medium text-sm
-                  ${
+                className={`app-nav-link ${
                     isActivePath(item.path)
-                      ? 'bg-primary text-primary-foreground shadow-glow'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                  }
-                `}
+                      ? 'app-nav-link-active'
+                      : ''
+                  }`}
               >
                 <Icon name={item.icon as any} size={20} variant="outline" />
                 <span>{item.label}</span>

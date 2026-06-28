@@ -71,8 +71,8 @@ export default function QuizCarousel({ questions, onGenerateMore, hasMore = true
       </div>
 
       {/* Question card */}
-      <div className="bg-muted/40 border border-border rounded-lg p-18">
-        <p className="text-sm font-medium text-foreground mb-16 leading-relaxed">{current.q}</p>
+      <div className="lab-card-muted p-5">
+        <p className="text-base font-semibold text-foreground mb-4 leading-relaxed">{current.q}</p>
         <div className="space-y-9">
           {current.options.map((opt, i) => {
             const isSelected = answers[idx] === i;
@@ -82,7 +82,7 @@ export default function QuizCarousel({ questions, onGenerateMore, hasMore = true
                 key={i}
                 onClick={() => handleAnswer(i)}
                 disabled={hasAnswered}
-                className={`w-full text-left text-xs px-14 py-10 rounded-md border transition-smooth flex items-center gap-12 ${
+                className={`w-full text-left text-sm px-3 py-2.5 rounded-md border transition-smooth flex items-center gap-3 ${
                   hasAnswered
                     ? isRight
                       ? 'bg-success/10 border-success text-success font-medium'
@@ -124,7 +124,7 @@ export default function QuizCarousel({ questions, onGenerateMore, hasMore = true
         <button
           disabled={idx === 0}
           onClick={() => setIdx(i => i - 1)}
-          className="flex items-center gap-6 px-14 py-7 rounded-md border border-border text-sm text-foreground hover:bg-muted transition-smooth disabled:opacity-30 disabled:pointer-events-none"
+          className="flex items-center gap-2 px-3 py-2 rounded-md border border-border text-sm text-foreground hover:bg-muted transition-smooth disabled:opacity-30 disabled:pointer-events-none"
         >
           <Icon name="ArrowLeftIcon" size={14} /> Previous
         </button>
@@ -132,7 +132,7 @@ export default function QuizCarousel({ questions, onGenerateMore, hasMore = true
         {idx < questions.length - 1 ? (
           <button
             onClick={() => setIdx(i => i + 1)}
-            className="flex items-center gap-6 px-14 py-7 rounded-md border border-border text-sm text-foreground hover:bg-muted transition-smooth"
+            className="flex items-center gap-2 px-3 py-2 rounded-md border border-border text-sm text-foreground hover:bg-muted transition-smooth"
           >
             Next <Icon name="ArrowRightIcon" size={14} />
           </button>
@@ -140,7 +140,7 @@ export default function QuizCarousel({ questions, onGenerateMore, hasMore = true
           <button
             onClick={handleGenerateMore}
             disabled={generatingMore}
-            className="flex items-center gap-6 px-14 py-7 rounded-md bg-secondary text-secondary-foreground text-xs font-semibold hover:bg-secondary/90 transition-smooth disabled:opacity-60"
+            className="flex items-center gap-2 px-3 py-2 rounded-md bg-secondary text-secondary-foreground text-xs font-semibold hover:bg-secondary/90 transition-smooth disabled:opacity-60"
           >
             {generatingMore ? (
               <><span className="w-10 h-10 border-2 border-secondary-foreground/30 border-t-secondary-foreground rounded-full animate-spin" /> Generating...</>
