@@ -203,12 +203,11 @@
   }
 
   .lab-shell {
-    @apply min-h-screen bg-background pt-[60px] text-foreground;
+    @apply h-screen overflow-hidden bg-background pt-[60px] text-foreground;
   }
 
   .lab-workspace {
     @apply flex-1 overflow-hidden;
-    height: calc(100vh - 60px);
   }
 
   .lab-sidebar {
@@ -220,7 +219,7 @@
   }
 
   .lab-copilot {
-    @apply flex-shrink-0 border-border bg-card;
+    @apply flex-shrink-0 border-border bg-card overflow-hidden;
   }
 
   .lab-container {

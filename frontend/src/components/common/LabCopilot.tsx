@@ -143,45 +143,45 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
   return (
     <div className="flex flex-col" style={{ height: '100%', overflow: 'hidden' }}>
       {/* Header */}
-      <div className="p-4 border-b border-border bg-surface flex-shrink-0">
-        <div className="flex items-center gap-9 mb-2">
-          <div className="w-28 h-28 rounded-full bg-secondary/20 flex items-center justify-center">
+      <div className="p-2 border-b border-border bg-surface flex-shrink-0">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center">
             <Icon name="SparklesIcon" size={14} className="text-secondary" variant="solid" />
           </div>
           <span className="font-heading text-sm font-semibold text-foreground">AI Copilot</span>
         </div>
         <p className="text-xs text-muted-foreground truncate" title={context}>📍 {context}</p>
       </div>
+      
+      {/* Tab content — fills remaining space, uses flex column so children can pin bottom */}
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
 
-      {/* Tabs */}
+        {/* copilot chat TAB */}
+        
+         {/* Tabs */}
       <div className="flex border-b border-border bg-card flex-shrink-0">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 flex flex-col items-center gap-2 py-9 text-xs font-medium transition-smooth border-b-2 ${
+            className={`flex-1 flex flex-col items-center gap-1 py-2 text-xs font-medium transition-smooth border-b-2 ${
               activeTab === tab.id
                 ? 'border-primary text-primary bg-primary/5'
                 : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted'
             }`}
           >
-            <Icon name={tab.icon as any} size={14} />
+            <Icon name={tab.icon as any} size={13} />
             {tab.label}
           </button>
         ))}
       </div>
-
-      {/* Tab content — fills remaining space, uses flex column so children can pin bottom */}
-      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-
-        {/* CHAT TAB */}
         {activeTab === 'chat' && (
-          <div className="flex flex-col" style={{ height: "100%", overflow: 'hidden' }}>
+          <div className="flex flex-col flex-1 min-h-0">
             {/* Scrollable messages — flex-1 + min-h-0 keeps it from overflowing */}
             <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 scrollbar-clean">
               {messages.map(msg => (
                 <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[90%] px-12 py-9 rounded-lg text-xs leading-relaxed ${
+                  <div className={`max-w-[90%] px-3 py-2 rounded-lg text-xs leading-relaxed ${
                     msg.role === 'user'
                       ? 'bg-primary text-primary-foreground rounded-tr-none'
                       : 'bg-muted border border-border text-foreground rounded-tl-none'
@@ -194,9 +194,9 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
               ))}
               {chatGenerating && (
                 <div className="flex justify-start">
-                  <div className="bg-muted border border-border px-12 py-10 rounded-lg rounded-tl-none flex gap-4">
+                  <div className="bg-muted border border-border px-3 py-2 rounded-lg rounded-tl-none flex gap-1">
                     {[0, 150, 300].map(d => (
-                      <span key={d} className="w-5 h-5 rounded-full bg-secondary animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                      <span key={d} className="w-1.5 h-1.5 rounded-full bg-secondary animate-bounce" style={{ animationDelay: `${d}ms` }} />
                     ))}
                   </div>
                 </div>
@@ -230,7 +230,7 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
 
         {/* HINT TAB */}
         {activeTab === 'hint' && (
-          <div className="flex flex-col" style={{ height: '100%', overflow: 'hidden' }}>
+          <div className="flex flex-col flex-1 min-h-0">
             <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 scrollbar-clean">
               <div className="text-center">
                 <Icon name="LightBulbIcon" size={32} variant="outline" className="text-warning mx-auto mb-9" />
@@ -253,15 +253,15 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
               </div>
 
               {generating && activeTab === 'hint' && (
-                <div className="flex justify-center py-12">
-                  <span className="w-20 h-20 border-2 border-warning/30 border-t-warning rounded-full animate-spin" />
+                <div className="flex justify-center py-4">
+                  <span className="w-5 h-5 border-2 border-warning/30 border-t-warning rounded-full animate-spin" />
                 </div>
               )}
 
               {/* Hint level indicators */}
-              <div className="flex justify-center gap-9 pt-2">
+              <div className="flex justify-center gap-2 pt-2">
                 {hints.map((_, i) => (
-                  <div key={i} className={`w-24 h-6 rounded-full ${i < hintLevel ? 'bg-warning' : 'bg-muted'}`} />
+                  <div key={i} className={`w-4 h-1.5 rounded-full ${i < hintLevel ? 'bg-warning' : 'bg-muted'}`} />
                 ))}
               </div>
             </div>
@@ -270,7 +270,7 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
             {hintLevel < hints.length && !generating && (
               <div className="flex-shrink-0 border-t border-border bg-card p-3">
                 <button onClick={getNextHint}
-                  className="w-full py-10 rounded-md border border-warning text-warning text-xs font-semibold hover:bg-warning/10 transition-smooth flex items-center justify-center gap-6">
+                  className="w-full py-2 rounded-md border border-warning text-warning text-xs font-semibold hover:bg-warning/10 transition-smooth flex items-center justify-center gap-2">
                   <Icon name="LightBulbIcon" size={14} />
                   {hintLevel === 0 ? 'Get First Hint' : `Get Level ${hintLevel + 1} Hint`}
                 </button>
@@ -286,10 +286,10 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
 
         {/* DIVE DEEPER TAB */}
         {activeTab === 'deeper' && (
-          <div className="flex flex-col" style={{ height: '100%', overflow: 'hidden' }}>
+          <div className="flex flex-col flex-1 min-h-0">
             <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 scrollbar-clean">
               <div className="text-center">
-                <Icon name="MagnifyingGlassIcon" size={32} variant="outline" className="text-secondary mx-auto mb-9" />
+                <Icon name="MagnifyingGlassIcon" size={24} variant="outline" className="text-secondary mx-auto mb-2" />
                 <h4 className="font-heading text-sm font-semibold text-foreground mb-4">Dive Deeper</h4>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   Advanced internals, production insights, and what senior engineers know that juniors miss.
@@ -297,8 +297,8 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
               </div>
 
               {generating && activeTab === 'deeper' && (
-                <div className="flex justify-center py-18">
-                  <span className="w-20 h-20 border-2 border-secondary/30 border-t-secondary rounded-full animate-spin" />
+                <div className="flex justify-center py-4">
+                  <span className="w-5 h-5 border-2 border-secondary/30 border-t-secondary rounded-full animate-spin" />
                 </div>
               )}
 
@@ -320,7 +320,7 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
               <div className="flex-shrink-0 border-t border-border bg-card p-3">
                 <button
                   onClick={() => triggerGenerate(() => setDeeperShown(true))}
-                  className="w-full py-10 rounded-md bg-secondary/10 border border-secondary/30 text-secondary text-xs font-semibold hover:bg-secondary/20 transition-smooth flex items-center justify-center gap-6"
+                  className="w-full py-2 rounded-md bg-secondary/10 border border-secondary/30 text-secondary text-xs font-semibold hover:bg-secondary/20 transition-smooth flex items-center justify-center gap-2"
                 >
                   <Icon name="SparklesIcon" size={14} />Generate Deep Insights
                 </button>
@@ -331,10 +331,10 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
 
         {/* ELI5 TAB */}
         {activeTab === 'eli5' && (
-          <div className="flex flex-col" style={{ height: '100%', overflow: 'hidden' }}>
+          <div className="flex flex-col flex-1 min-h-0">
             <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 scrollbar-clean">
               <div className="text-center">
-                <Icon name="FaceSmileIcon" size={32} variant="outline" className="text-accent mx-auto mb-9" />
+                <Icon name="FaceSmileIcon" size={24} variant="outline" className="text-accent mx-auto mb-2" />
                 <h4 className="font-heading text-sm font-semibold text-foreground mb-4">Explain Like I'm 5</h4>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   A simple, intuitive explanation — no jargon, no formulas.
@@ -342,8 +342,8 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
               </div>
 
               {generating && activeTab === 'eli5' && (
-                <div className="flex justify-center py-18">
-                  <span className="w-20 h-20 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+                <div className="flex justify-center py-4">
+                  <span className="w-5 h-5 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
                 </div>
               )}
 

@@ -774,11 +774,11 @@ function diffColor(d: string) {
 
 function sdDiffStyle(d: string): { badge: string; bar: string } {
   switch (d) {
-    case 'Easy':        return { badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', bar: 'bg-emerald-500' };
-    case 'Easy-Medium': return { badge: 'bg-teal-500/15 text-teal-400 border-teal-500/30',         bar: 'bg-teal-500'   };
-    case 'Medium':      return { badge: 'bg-amber-500/15 text-amber-400 border-amber-500/30',       bar: 'bg-amber-500'  };
-    case 'Medium-Hard': return { badge: 'bg-orange-500/15 text-orange-400 border-orange-500/30',    bar: 'bg-orange-500' };
-    default:            return { badge: 'bg-rose-500/15 text-rose-400 border-rose-500/30',           bar: 'bg-rose-500'   };
+    case 'Easy':        return { badge: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30', bar: 'bg-emerald-500' };
+    case 'Easy-Medium': return { badge: 'bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30',           bar: 'bg-teal-500'   };
+    case 'Medium':      return { badge: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30',       bar: 'bg-amber-500'  };
+    case 'Medium-Hard': return { badge: 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30',  bar: 'bg-orange-500' };
+    default:            return { badge: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30',           bar: 'bg-rose-500'   };
   }
 }
 
@@ -817,12 +817,12 @@ function SDWikiIndex({
           </div>
           <div className="flex flex-wrap gap-3">
             {[
-              { label: 'Categories', value: groupedSections.length,  color: 'text-amber-400',   bg: 'bg-amber-500/10'   },
-              { label: 'Problems',   value: allTopics.length,         color: 'text-orange-400',  bg: 'bg-orange-500/10'  },
-              { label: 'Subtopics', value: totalSubs,                 color: 'text-cyan-400',    bg: 'bg-cyan-500/10'    },
-              { label: 'LLD',        value: lldCount,                 color: 'text-violet-400',  bg: 'bg-violet-500/10'  },
-              { label: 'Hard',       value: hardCount,                color: 'text-rose-400',    bg: 'bg-rose-500/10'    },
-              { label: 'Easy',       value: easyCount,                color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+              { label: 'Categories', value: groupedSections.length,  color: 'text-amber-600 dark:text-amber-400',   bg: 'bg-amber-500/10'   },
+              { label: 'Problems',   value: allTopics.length,         color: 'text-orange-600 dark:text-orange-400',  bg: 'bg-orange-500/10'  },
+              { label: 'Subtopics', value: totalSubs,                 color: 'text-cyan-600 dark:text-cyan-400',    bg: 'bg-cyan-500/10'    },
+              { label: 'LLD',        value: lldCount,                 color: 'text-violet-600 dark:text-violet-400',  bg: 'bg-violet-500/10'  },
+              { label: 'Hard',       value: hardCount,                color: 'text-rose-600 dark:text-rose-400',    bg: 'bg-rose-500/10'    },
+              { label: 'Easy',       value: easyCount,                color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
             ].map(stat => (
               <div key={stat.label} className={`${stat.bg} border border-border rounded-xl px-4 py-2.5 backdrop-blur-sm min-w-[64px]`}>
                 <div className={`text-2xl font-bold ${stat.color} leading-none`}>{stat.value}</div>
