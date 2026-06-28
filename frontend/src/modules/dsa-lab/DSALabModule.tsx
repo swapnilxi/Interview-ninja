@@ -5,6 +5,7 @@ import Icon from '@/components/ui/AppIcon';
 import LabCopilot from '@/components/common/LabCopilot';
 import OnDemandSection from '@/components/lab/OnDemandSection';
 import QuizCarousel from '@/components/lab/QuizCarousel';
+import GenerateQuestionsPanel from '@/modules/common/GenerateQuestionsPanel';
 
 /* ─────────────────────────────────────────── types ──────────────────────── */
 import { STATIC_DSA_TOPICS } from './fallbackTopics';
@@ -207,6 +208,7 @@ export default function DSALabInteractive() {
   const [newSubInput,   setNewSubInput]   = useState('');
   const [leftOpen,      setLeftOpen]      = useState(true);
   const [rightOpen,     setRightOpen]     = useState(true);
+  const [recentTopics,  setRecentTopics]  = useState<{ id: string; name: string; subId?: string; subName?: string }[]>([]);
 
   const mainRef = useRef<HTMLElement>(null);
 
@@ -225,6 +227,25 @@ export default function DSALabInteractive() {
       .then((data: DSATopic[]) => { if (data?.length) { setTopics(data); } else { setTopics(STATIC_DSA_TOPICS); } })
       .catch(e => { console.error('topics:', e); setTopics(STATIC_DSA_TOPICS); });
   }, []);
+
+  // Restore last opened topic from localStorage on mount
+  useEffect(() => {
+    const savedTopic  = localStorage.getItem('dsa-lab-topic');
+    const savedSub    = localStorage.getItem('dsa-lab-subtopic');
+    const savedRecent = localStorage.getItem('dsa-lab-recent-topics');
+    if (savedTopic) {
+      setSelectedTopicId(savedTopic);
+      if (savedTopic !== 'wiki') setExpandedTopics(prev => new Set([...prev, savedTopic]));
+    }
+    if (savedSub) setSelectedSubId(savedSub);
+    if (savedRecent) try { setRecentTopics(JSON.parse(savedRecent)); } catch {}
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('dsa-lab-topic', selectedTopicId);
+    if (selectedSubId) localStorage.setItem('dsa-lab-subtopic', selectedSubId);
+    else localStorage.removeItem('dsa-lab-subtopic');
+  }, [selectedTopicId, selectedSubId]);
 
   /* ── derived ── */
   const allSecNames = Array.from(new Set([
@@ -252,12 +273,34 @@ export default function DSALabInteractive() {
   /* ── actions ── */
   const scrollTop = () => mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
 
+  const addToRecent = (topicId: string, topicName: string, subId?: string, subName?: string) => {
+    const key = subId ?? topicId;
+    setRecentTopics(prev => {
+      const filtered = prev.filter(r => (r.subId ?? r.id) !== key);
+      const next = [{ id: topicId, name: topicName, subId, subName }, ...filtered].slice(0, 10);
+      localStorage.setItem('dsa-lab-recent-topics', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const removeRecentTopic = (key: string) => {
+    setRecentTopics(prev => {
+      const next = prev.filter(r => (r.subId ?? r.id) !== key);
+      localStorage.setItem('dsa-lab-recent-topics', JSON.stringify(next));
+      return next;
+    });
+  };
+
   const selectTopic = (id: string) => {
     setSelectedTopicId(id);
     setSelectedSubId(null);
     setSections(initSections());
     setQuizBatch(0);
-    if (id !== 'wiki') setExpandedTopics(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    if (id !== 'wiki') {
+      setExpandedTopics(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+      const t = topics.find(tt => tt.id === id);
+      if (t) addToRecent(id, t.name);
+    }
     scrollTop();
   };
 
@@ -267,6 +310,9 @@ export default function DSALabInteractive() {
     setSections(initSections());
     setQuizBatch(0);
     setExpandedTopics(prev => new Set([...prev, topicId]));
+    const t = topics.find(tt => tt.id === topicId);
+    const s = t?.subtopics.find(ss => ss.id === subId);
+    if (t && s) addToRecent(topicId, t.name, subId, s.name);
     scrollTop();
   };
 
@@ -409,6 +455,33 @@ export default function DSALabInteractive() {
               {selectedTopicId === 'wiki' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--lab-dsa)] flex-shrink-0" />}
             </button>
 
+            {/* Recently Opened */}
+            {recentTopics.length > 0 && (
+              <div className="px-2 mt-1 mb-1">
+                <div className="flex items-center gap-1 px-1 mb-1.5">
+                  <Icon name="ClockIcon" size={10} className="text-muted-foreground/50" />
+                  <span className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest">Recent</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {recentTopics.map(r => (
+                    <div key={r.subId ?? r.id}
+                      className="group flex items-center gap-0.5 pl-2 pr-1 py-0.5 rounded-full bg-muted/60 hover:bg-muted transition-all">
+                      <button
+                        onClick={() => r.subId ? selectSub(r.id, r.subId) : selectTopic(r.id)}
+                        className="truncate max-w-[130px] text-[11px] text-muted-foreground hover:text-foreground text-left leading-none py-0.5">
+                        {r.subName ?? r.name}
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); removeRecentTopic(r.subId ?? r.id); }}
+                        className="ml-0.5 p-0.5 rounded-full hover:bg-muted-foreground/20 text-muted-foreground/40 hover:text-foreground transition-all flex-shrink-0">
+                        <Icon name="XMarkIcon" size={8} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="mx-3 my-2 h-px bg-border/60" />
 
             {/* Sections */}
@@ -530,6 +603,27 @@ export default function DSALabInteractive() {
 
         {/* ═══════════════════════ CENTER PANEL ═══════════════════════════ */}
         <main ref={mainRef} className="lab-main scrollbar-clean">
+          {selectedTopicId !== 'wiki' && (
+            <div className="sticky top-0 z-20 flex items-center gap-2 px-4 py-2.5 border-b border-border bg-background/95 backdrop-blur-sm">
+              <button onClick={() => selectTopic('wiki')}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-blue-400 transition-colors group">
+                <Icon name="ArrowLeftIcon" size={12} className="group-hover:-translate-x-0.5 transition-transform" />
+                <span>Wiki Index</span>
+              </button>
+              {currentTopic && (
+                <>
+                  <Icon name="ChevronRightIcon" size={10} className="text-muted-foreground/40 flex-shrink-0" />
+                  <span className="text-xs font-medium text-foreground truncate">{currentTopic.name}</span>
+                </>
+              )}
+              {currentSub && (
+                <>
+                  <Icon name="ChevronRightIcon" size={10} className="text-muted-foreground/40 flex-shrink-0" />
+                  <span className="text-xs text-muted-foreground truncate">{currentSub.name}</span>
+                </>
+              )}
+            </div>
+          )}
           {selectedTopicId === 'wiki' ? (
             <WikiIndex grouped={grouped} topics={topics} onSelectTopic={selectTopic} onSelectSub={selectSub} />
           ) : !currentTopic ? (
@@ -803,6 +897,14 @@ function TopicDetail({
           })}
         </div>
       </div>
+
+      {/* ── Generate Questions ── */}
+      <GenerateQuestionsPanel
+        topicName={topic.name}
+        subtopicName={subtopic?.name}
+        labName="dsa"
+        accentVar="--lab-dsa"
+      />
 
       {/* ── On-demand sections ── */}
       <div className="space-y-4">

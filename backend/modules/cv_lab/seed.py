@@ -3,7 +3,7 @@ import json
 import sqlite3
 from typing import List
 
-from lab_ninja.db import get_db_path
+from modules.common.db import get_db_path
 
 
 def fetch_cv_topics() -> List[dict]:

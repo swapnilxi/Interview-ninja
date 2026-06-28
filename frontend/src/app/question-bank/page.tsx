@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Header from '@/components/common/Header';
-import QuestionBankInteractive from './components/QuestionBankInteractive';
+import QuestionBankInteractive from '@/modules/question-bank/QuestionBankModule';
 
 export const metadata: Metadata = {
   title: 'Question Bank - InterviewNinja',

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Header from '@/components/common/Header';
-import QuestionReviewInteractive from './components/QuestionReviewInteractive';
+import QuestionReviewInteractive from '@/modules/question-review/QuestionReviewModule';
 
 export const metadata: Metadata = {
   title: 'Question Review - InterviewNinja',

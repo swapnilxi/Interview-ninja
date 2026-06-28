@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Header from '@/components/common/Header';
-import ProgressDashboardInteractive from './components/ProgressDashboardInteractive';
+import ProgressDashboardInteractive from '@/modules/progress-dashboard/ProgressDashboardModule';
 
 export const metadata: Metadata = {
   title: 'Progress Dashboard - InterviewNinja',

@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import List
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
-from lab_ninja.db import fetch_lab_sections, save_lab_section
+from modules.common.db import fetch_lab_sections, save_lab_section
 from .seed import fetch_cv_topics, save_cv_topic
 
 

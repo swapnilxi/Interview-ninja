@@ -5,6 +5,7 @@ import Icon from '@/components/ui/AppIcon';
 import LabCopilot from '@/components/common/LabCopilot';
 import OnDemandSection from '@/components/lab/OnDemandSection';
 import QuizCarousel from '@/components/lab/QuizCarousel';
+import GenerateQuestionsPanel from '@/modules/common/GenerateQuestionsPanel';
 
 interface SDTopic {
   id: string;
@@ -927,8 +928,9 @@ export default function SystemDesignLabInteractive() {
   const [showAddSec, setShowAddSec] = useState(false);
   const [addingTopicToSection, setAddingTopicToSection] = useState<string | null>(null);
   const [newTopicInput, setNewTopicInput] = useState('');
-  const [leftOpen,  setLeftOpen]  = useState(true);
-  const [rightOpen, setRightOpen] = useState(true);
+  const [leftOpen,      setLeftOpen]      = useState(true);
+  const [rightOpen,     setRightOpen]     = useState(true);
+  const [recentTopics,  setRecentTopics]  = useState<{ id: string; name: string; subId?: string; subName?: string }[]>([]);
 
   useEffect(() => {
     fetch('http://localhost:8000/system-design/sections')
@@ -959,6 +961,25 @@ export default function SystemDesignLabInteractive() {
         setTopics(TOPICS);
       });
   }, []);
+
+  // Restore last opened topic from localStorage on mount
+  useEffect(() => {
+    const savedTopic  = localStorage.getItem('sd-lab-topic');
+    const savedSub    = localStorage.getItem('sd-lab-subtopic');
+    const savedRecent = localStorage.getItem('sd-lab-recent-topics');
+    if (savedTopic) {
+      setSelectedTopicId(savedTopic);
+      if (savedTopic !== 'wiki') setExpandedTopics(prev => new Set([...prev, savedTopic]));
+    }
+    if (savedSub) setSelectedSubtopicId(savedSub);
+    if (savedRecent) try { setRecentTopics(JSON.parse(savedRecent)); } catch {}
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('sd-lab-topic', selectedTopicId);
+    if (selectedSubtopicId) localStorage.setItem('sd-lab-subtopic', selectedSubtopicId);
+    else localStorage.removeItem('sd-lab-subtopic');
+  }, [selectedTopicId, selectedSubtopicId]);
 
   const handleAddCustomSection = () => {
     if (!customSectionInput.trim()) return;
@@ -1050,6 +1071,24 @@ export default function SystemDesignLabInteractive() {
     setExpandedTopics(prev => new Set([...prev, item.topicId]));
   };
 
+  const addToRecent = (topicId: string, topicName: string, subId?: string, subName?: string) => {
+    const key = subId ?? topicId;
+    setRecentTopics(prev => {
+      const filtered = prev.filter(r => (r.subId ?? r.id) !== key);
+      const next = [{ id: topicId, name: topicName, subId, subName }, ...filtered].slice(0, 10);
+      localStorage.setItem('sd-lab-recent-topics', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const removeRecentTopic = (key: string) => {
+    setRecentTopics(prev => {
+      const next = prev.filter(r => (r.subId ?? r.id) !== key);
+      localStorage.setItem('sd-lab-recent-topics', JSON.stringify(next));
+      return next;
+    });
+  };
+
   const selectTopic = (id: string) => {
     setSelectedTopicId(id);
     setSelectedSubtopicId(null);
@@ -1057,7 +1096,20 @@ export default function SystemDesignLabInteractive() {
     setQuizBatch(0);
     if (id !== 'wiki') {
       setExpandedTopics(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+      const t = allTopics.find(tt => tt.id === id);
+      if (t) addToRecent(id, t.name);
     }
+  };
+
+  const selectSubtopic = (topicId: string, subId: string) => {
+    setSelectedTopicId(topicId);
+    setSelectedSubtopicId(subId);
+    setSections(initSections());
+    setQuizBatch(0);
+    setExpandedTopics(prev => new Set([...prev, topicId]));
+    const t = allTopics.find(tt => tt.id === topicId);
+    const s = t?.subtopics.find(ss => ss.id === subId);
+    if (t && s) addToRecent(topicId, t.name, subId, s.name);
   };
 
   const generateSection = (sectionId: string) => {
@@ -1217,6 +1269,33 @@ export default function SystemDesignLabInteractive() {
               {selectedTopicId === 'wiki' && <span className="w-1.5 h-1.5 rounded-full bg-[var(--lab-system)] flex-shrink-0" />}
             </button>
 
+            {/* Recently Opened */}
+            {recentTopics.length > 0 && (
+              <div className="px-2 mt-1 mb-1">
+                <div className="flex items-center gap-1 px-1 mb-1.5">
+                  <Icon name="ClockIcon" size={10} className="text-muted-foreground/50" />
+                  <span className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest">Recent</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {recentTopics.map(r => (
+                    <div key={r.subId ?? r.id}
+                      className="group flex items-center gap-0.5 pl-2 pr-1 py-0.5 rounded-full bg-muted/60 hover:bg-muted transition-all">
+                      <button
+                        onClick={() => r.subId ? selectSubtopic(r.id, r.subId) : selectTopic(r.id)}
+                        className="truncate max-w-[130px] text-[11px] text-muted-foreground hover:text-foreground text-left leading-none py-0.5">
+                        {r.subName ?? r.name}
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); removeRecentTopic(r.subId ?? r.id); }}
+                        className="ml-0.5 p-0.5 rounded-full hover:bg-muted-foreground/20 text-muted-foreground/40 hover:text-foreground transition-all flex-shrink-0">
+                        <Icon name="XMarkIcon" size={8} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="mx-3 my-2 h-px bg-border/60" />
 
             {/* Sections */}
@@ -1295,7 +1374,7 @@ export default function SystemDesignLabInteractive() {
                                   const isSubAct = selectedSubtopicId === sub.id;
                                   return (
                                     <button key={sub.id}
-                                      onClick={() => { setSelectedTopicId(topic.id); setSelectedSubtopicId(sub.id); setSections(initSections()); setQuizBatch(0); setExpandedTopics(prev => new Set([...prev, topic.id])); }}
+                                      onClick={() => selectSubtopic(topic.id, sub.id)}
                                       className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] leading-tight transition-all ${isSubAct ? 'bg-[var(--lab-system-soft)] text-[var(--lab-system)]' : 'text-muted-foreground/70 hover:text-foreground hover:bg-muted/40'}`}>
                                       <span className={`text-[8px] mr-1.5 ${isSubAct ? 'text-[var(--lab-system)]' : 'text-muted-foreground/30'}`}>
                                         {(idx + 1).toString().padStart(2, '0')}
@@ -1337,12 +1416,33 @@ export default function SystemDesignLabInteractive() {
 
         {/* ── CENTER ────────────────────────────────────────────────────── */}
         <main className="lab-main scrollbar-clean">
+          {selectedTopicId !== 'wiki' && (
+            <div className="sticky top-0 z-20 flex items-center gap-2 px-4 py-2.5 border-b border-border bg-background/95 backdrop-blur-sm">
+              <button onClick={() => selectTopic('wiki')}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-400 transition-colors group">
+                <Icon name="ArrowLeftIcon" size={12} className="group-hover:-translate-x-0.5 transition-transform" />
+                <span>Wiki Index</span>
+              </button>
+              {currentTopic && (
+                <>
+                  <Icon name="ChevronRightIcon" size={10} className="text-muted-foreground/40 flex-shrink-0" />
+                  <span className="text-xs font-medium text-foreground truncate">{currentTopic.name}</span>
+                </>
+              )}
+              {currentSubtopic && (
+                <>
+                  <Icon name="ChevronRightIcon" size={10} className="text-muted-foreground/40 flex-shrink-0" />
+                  <span className="text-xs text-muted-foreground truncate">{currentSubtopic.name}</span>
+                </>
+              )}
+            </div>
+          )}
           {selectedTopicId === 'wiki' ? (
             <SDWikiIndex
               groupedSections={groupedSections}
               allTopics={allTopics}
               onSelectTopic={selectTopic}
-              onSelectSub={(topicId, subId) => { setSelectedTopicId(topicId); setSelectedSubtopicId(subId); setSections(initSections()); setQuizBatch(0); setExpandedTopics(prev => new Set([...prev, topicId])); }}
+              onSelectSub={selectSubtopic}
             />
           ) : !currentTopic ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-24">
@@ -1424,6 +1524,14 @@ export default function SystemDesignLabInteractive() {
                   })}
                 </div>
               </div>
+
+              {/* ── Generate Questions ── */}
+              <GenerateQuestionsPanel
+                topicName={currentTopic.name}
+                subtopicName={currentSubtopic?.name}
+                labName="system-design"
+                accentVar="--lab-system"
+              />
 
               {/* ── On-demand sections ── */}
               <div className="space-y-4">

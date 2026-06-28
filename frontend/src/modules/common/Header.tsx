@@ -1,0 +1,275 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import Icon from '@/components/ui/AppIcon';
+
+interface NavigationItem {
+  label: string;
+  path: string;
+  icon: string;
+}
+
+const navigationItems: NavigationItem[] = [
+  {
+    label: 'Daily Session',
+    path: '/daily-session',
+    icon: 'AcademicCapIcon',
+  },
+  {
+    label: 'CV Lab',
+    path: '/cv-lab',
+    icon: 'EyeIcon',
+  },
+  {
+    label: 'DSA Lab',
+    path: '/dsa-lab',
+    icon: 'CpuChipIcon',
+  },
+  {
+    label: 'System Design',
+    path: '/system-design-lab',
+    icon: 'ServerStackIcon',
+  },
+  {
+    label: 'Progress',
+    path: '/progress-dashboard',
+    icon: 'ChartBarIcon',
+  },
+  {
+    label: 'Question Bank',
+    path: '/question-bank',
+    icon: 'BookOpenIcon',
+  },
+  {
+    label: 'Config',
+    path: '/config',
+    icon: 'Cog6ToothIcon',
+  },
+];
+
+function SystemStatus() {
+  const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [dbStatus, setDbStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      // Check API
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch('http://localhost:8000/health', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        setApiStatus(res.ok ? 'online' : 'offline');
+      } catch (err) {
+        setApiStatus('offline');
+      }
+
+      // Check DB
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch('http://localhost:8000/settings', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        setDbStatus(res.ok ? 'online' : 'offline');
+      } catch (err) {
+        setDbStatus('offline');
+      }
+    };
+    
+    checkStatus();
+    const interval = setInterval(checkStatus, 15000); // Check every 15 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  const StatusIndicator = ({ label, status }: { label: string, status: string }) => (
+    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/50 border border-border text-[10px] font-medium">
+      <span className="text-muted-foreground uppercase tracking-wider">{label}</span>
+      <div className="flex items-center gap-1">
+        {status === 'checking' ? (
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+        ) : status === 'online' ? (
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+        ) : (
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
+        )}
+        <span className={status === 'online' ? 'text-emerald-500' : status === 'offline' ? 'text-rose-500' : 'text-amber-500'}>
+          {status === 'checking' ? 'CHK' : status === 'online' ? 'ON' : 'OFF'}
+        </span>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex items-center gap-2 mr-4">
+      <StatusIndicator label="API" status={apiStatus} />
+      <StatusIndicator label="DB" status={dbStatus} />
+    </div>
+  );
+}
+
+export default function Header() {
+  const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark' | null>(null);
+
+  useEffect(() => {
+    const storedTheme = localStorage.getItem('interview-ninja-theme') as 'light' | 'dark' | null;
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const initialTheme = storedTheme ?? (prefersDark ? 'dark' : 'light');
+    setTheme(initialTheme);
+    document.documentElement.classList.toggle('dark', initialTheme === 'dark');
+  }, []);
+
+  // Derive resolved theme: if state not yet hydrated, read from DOM
+  const resolvedTheme: 'light' | 'dark' = theme ?? (
+    typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+  );
+
+  const isActivePath = (path: string) => {
+    return pathname === path;
+  };
+
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false);
+  };
+
+  const toggleTheme = () => {
+    const nextTheme = resolvedTheme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('interview-ninja-theme', nextTheme);
+    document.documentElement.classList.toggle('dark', nextTheme === 'dark');
+  };
+
+  return (
+    <header className="app-header">
+      <nav className="h-[60px] px-4 sm:px-6 xl:px-8 flex items-center justify-between gap-4">
+        <Link 
+          href="/daily-session" 
+          className="flex items-center gap-3 transition-smooth hover:opacity-85"
+          onClick={closeMobileMenu}
+        >
+          <div className="flex items-center gap-3">
+            <svg
+              width="36"
+              height="36"
+              viewBox="0 0 40 40"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="transition-smooth"
+            >
+              <rect width="40" height="40" rx="8" fill="url(#gradient)" />
+              <path
+                d="M20 10L12 16V28L20 34L28 28V16L20 10Z"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M20 10V22M20 22L12 28M20 22L28 28"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <defs>
+                <linearGradient
+                  id="gradient"
+                  x1="0"
+                  y1="0"
+                  x2="40"
+                  y2="40"
+                  gradientUnits="userSpaceOnUse"
+                >
+                  <stop stopColor="#2563EB" />
+                  <stop offset="1" stopColor="#7C3AED" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <span className="font-heading text-xl font-semibold text-foreground">
+              Lab-Ninja
+            </span>
+          </div>
+        </Link>
+
+        <div className="hidden lg:flex items-center gap-2">
+          <SystemStatus />
+          {navigationItems.map((item) => (
+            <Link
+              key={item.path}
+              href={item.path}
+              className={`app-nav-link ${
+                  isActivePath(item.path)
+                    ? 'app-nav-link-active'
+                    : ''
+                }`}
+            >
+              <Icon name={item.icon as any} size={18} variant="outline" />
+              <span>{item.label}</span>
+            </Link>
+          ))}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="theme-toggle ml-2"
+            aria-label={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} theme`}
+            title={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} theme`}
+          >
+            <Icon name={resolvedTheme === 'dark' ? 'SunIcon' : 'MoonIcon'} size={18} />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 lg:hidden">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="theme-toggle"
+            aria-label={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} theme`}
+          >
+            <Icon name={resolvedTheme === 'dark' ? 'SunIcon' : 'MoonIcon'} size={18} />
+          </button>
+          <button
+            onClick={toggleMobileMenu}
+            className="theme-toggle"
+            aria-label="Toggle mobile menu"
+            aria-expanded={mobileMenuOpen}
+          >
+            <Icon
+              name={mobileMenuOpen ? 'XMarkIcon' : 'Bars3Icon'}
+              size={22}
+              variant="outline"
+            />
+          </button>
+        </div>
+      </nav>
+
+      {mobileMenuOpen && (
+        <div className="lg:hidden bg-card/95 border-t border-border backdrop-blur-xl">
+          <div className="px-4 py-3 flex flex-col gap-1">
+            {navigationItems.map((item) => (
+              <Link
+                key={item.path}
+                href={item.path}
+                onClick={closeMobileMenu}
+                className={`app-nav-link ${
+                    isActivePath(item.path)
+                      ? 'app-nav-link-active'
+                      : ''
+                  }`}
+              >
+                <Icon name={item.icon as any} size={20} variant="outline" />
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}

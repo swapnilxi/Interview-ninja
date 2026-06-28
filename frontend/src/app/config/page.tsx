@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Header from '@/components/common/Header';
-import ConfigInteractive from './components/ConfigInteractive';
+import ConfigInteractive from '@/modules/config/ConfigModule';
 
 export const metadata: Metadata = {
   title: 'Settings - InterviewNinja',
