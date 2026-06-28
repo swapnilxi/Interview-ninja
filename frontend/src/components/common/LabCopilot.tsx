@@ -233,7 +233,7 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
           <div className="flex flex-col flex-1 min-h-0">
             <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 scrollbar-clean">
               <div className="text-center">
-                <Icon name="LightBulbIcon" size={32} variant="outline" className="text-warning mx-auto mb-9" />
+                <Icon name="LightBulbIcon" size={24} variant="outline" className="text-warning mx-auto mb-2" />
                 <h4 className="font-heading text-sm font-semibold text-foreground mb-4">Progressive Hints</h4>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   Hints get more specific with each level. Try to solve it before going deeper.
@@ -241,9 +241,9 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
               </div>
 
               {/* Hint levels shown */}
-              <div className="space-y-12">
+              <div className="space-y-2">
                 {hints.slice(0, hintLevel).map((hint, i) => (
-                  <div key={i} className={`p-12 rounded-lg text-xs leading-relaxed border ${
+                  <div key={i} className={`p-3 rounded-lg text-xs leading-relaxed border ${
                     i === 0 ? 'bg-success/5 border-success/20' :
                     i === 1 ? 'bg-warning/5 border-warning/20' : 'bg-error/5 border-error/20'
                   }`}>
@@ -303,10 +303,10 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
               )}
 
               {deeperShown && (
-                <div className="text-xs leading-relaxed text-foreground space-y-10 animate-fade-in">
+                <div className="text-xs leading-relaxed text-foreground space-y-2 animate-fade-in">
                   {(DIVE_DEEPER[labType] ?? DIVE_DEEPER.default).split('\n').map((line, i) => {
                     if (line.startsWith('**') && line.endsWith('**'))
-                      return <h5 key={i} className="font-semibold text-foreground mt-14 mb-4">{line.replace(/\*\*/g, '')}</h5>;
+                      return <h5 key={i} className="font-semibold text-foreground mt-3 mb-1">{line.replace(/\*\*/g, '')}</h5>;
                     if (/^\d+\./.test(line))
                       return <p key={i} className="text-muted-foreground">{line}</p>;
                     return line.trim() ? <p key={i}>{line}</p> : <div key={i} className="h-4" />;
@@ -348,7 +348,7 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
               )}
 
               {eli5Shown && (
-                <div className="bg-accent/5 border border-accent/20 rounded-lg p-14 text-xs leading-relaxed text-foreground space-y-10 animate-fade-in">
+                <div className="bg-accent/5 border border-accent/20 rounded-lg p-3 text-xs leading-relaxed text-foreground space-y-2 animate-fade-in">
                   {(ELI5_RESPONSES[labType] ?? ELI5_RESPONSES.default).split('\n').map((line, i) => {
                     if (line.startsWith('🐣'))
                       return <h5 key={i} className="font-semibold text-accent">{line}</h5>;
@@ -363,7 +363,7 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
               <div className="flex-shrink-0 border-t border-border bg-card p-3">
                 <button
                   onClick={() => triggerGenerate(() => setEli5Shown(true))}
-                  className="w-full py-10 rounded-md bg-accent/10 border border-accent/30 text-accent text-xs font-semibold hover:bg-accent/20 transition-smooth flex items-center justify-center gap-6"
+                  className="w-full py-2 rounded-md bg-accent/10 border border-accent/30 text-accent text-xs font-semibold hover:bg-accent/20 transition-smooth flex items-center justify-center gap-2"
                 >
                   <Icon name="FaceSmileIcon" size={14} />Explain Simply
                 </button>
