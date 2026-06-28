@@ -12,12 +12,10 @@ export default function DailySessionPage() {
     <>
       <Header />
       <div className="min-h-screen bg-background pt-[60px]">
-        <div className="max-w-[1400px] mx-auto px-24 py-36">
-          <div className="mb-12">
-            <h1 className="font-heading text-4xl font-semibold text-foreground mb-12">
-              Daily Training Session
-            </h1>
-            <p className="text-muted-foreground font-body">
+        <div className="page-wrapper">
+          <div className="page-header">
+            <h1 className="page-title">Daily Training Session</h1>
+            <p className="page-subtitle">
               Generate 10 tailor-made questions covering core software engineering and advanced Computer Vision.
             </p>
           </div>

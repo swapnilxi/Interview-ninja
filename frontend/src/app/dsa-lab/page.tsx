@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import DSALabInteractive from './components/DSALabInteractive';
+import DSALabInteractive from '@/modules/dsa-lab/DSALabModule';
 import Header from '@/components/common/Header';
 
 export const metadata: Metadata = {

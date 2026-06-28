@@ -1,10 +1,10 @@
 from typing import List
-from interview_ninja.db import QuestionRecord
+from lab_ninja.db import QuestionRecord
 
 def render_markdown_for_day(records: List[QuestionRecord], session_date: str) -> str:
     """Format today's interview/CV questions as Markdown."""
     lines = []
-    lines.append(f"# Interview-Ninja Daily Questions - {session_date}")
+    lines.append(f"# Lab-Ninja Daily Questions - {session_date}")
     lines.append("")
     
     # Filter Section A (Core Interview Track) and Section B (Computer Vision Track)

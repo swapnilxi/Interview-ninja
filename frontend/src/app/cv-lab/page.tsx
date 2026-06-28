@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import CVLabInteractive from './components/CVLabInteractive';
+import CVLabInteractive from '@/modules/cv-lab/CVLabModule';
 
 import Header from '@/components/common/Header';
 

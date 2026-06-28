@@ -2,7 +2,7 @@ import sqlite3
 from datetime import datetime, timedelta
 
 def seed_db():
-    conn = sqlite3.connect('interview_ninja.sqlite3')
+    conn = sqlite3.connect('lab_ninja.sqlite3')
     cursor = conn.cursor()
 
     # Clear existing tables

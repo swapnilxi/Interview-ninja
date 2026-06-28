@@ -1,4 +1,4 @@
-# Interview-Ninja Answer-Evaluation Rubrics
+# Lab-Ninja Answer-Evaluation Rubrics
 
 This document outlines the evaluation guidelines and expectations for different question sub-types.
 

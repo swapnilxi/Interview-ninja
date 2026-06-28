@@ -21,7 +21,7 @@
     --color-accent-foreground: #fffaf2;
     --color-muted: #eee6da;
     --color-muted-foreground: #71695f;
-    --color-border: rgba(64, 55, 45, 0.15);
+    --color-border: rgba(64, 55, 45, 0.18);
     --color-input: #fffdf8;
     --color-ring: #6d6be8;
     --color-success: #14845f;
@@ -73,7 +73,7 @@
     --color-accent-foreground: #25190b;
     --color-muted: #302a22;
     --color-muted-foreground: #b9ad9f;
-    --color-border: rgba(255, 246, 235, 0.13);
+    --color-border: rgba(255, 246, 235, 0.17);
     --color-input: #29231c;
     --color-ring: #a9a5ff;
     --color-success: #54c79a;
@@ -190,11 +190,15 @@
   }
 
   .app-nav-link {
-    @apply flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-smooth hover:bg-muted hover:text-foreground;
+    @apply flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium text-muted-foreground transition-smooth hover:bg-muted hover:text-foreground;
   }
 
   .app-nav-link-active {
-    @apply bg-primary text-primary-foreground shadow-glow hover:bg-primary hover:text-primary-foreground;
+    background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    color: var(--color-primary);
+    &:hover {
+      background-color: color-mix(in srgb, var(--color-primary) 15%, transparent);
+    }
   }
 
   .theme-toggle {
@@ -227,12 +231,30 @@
   }
 
   .lab-card {
-    @apply rounded-lg border border-border bg-card text-card-foreground shadow-card;
+    @apply rounded-lg border border-border bg-card text-card-foreground;
+    box-shadow: 0 1px 3px rgba(15, 12, 8, 0.07), 0 10px 28px rgba(15, 12, 8, 0.07);
   }
 
   .lab-card-muted {
     @apply rounded-lg border border-border text-card-foreground;
     background: color-mix(in srgb, var(--color-card) 70%, transparent);
+  }
+
+  .page-wrapper {
+    @apply max-w-[1100px] mx-auto px-24 py-24;
+  }
+
+  .page-header {
+    @apply mb-24;
+  }
+
+  .page-title {
+    @apply font-heading text-3xl font-bold text-foreground mb-6;
+    letter-spacing: -0.01em;
+  }
+
+  .page-subtitle {
+    @apply text-sm text-muted-foreground max-w-xl leading-relaxed;
   }
 
   .lab-hero {

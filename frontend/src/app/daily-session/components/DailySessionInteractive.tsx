@@ -142,6 +142,8 @@ const EXPLANATIONS: Record<number, { answer: string; detail: string }> = {
   }
 };
 
+type CategoryFilter = 'All' | 'Interview' | 'CV Skill';
+
 export default function DailySessionInteractive() {
   const router = useRouter();
   const [sessionActive, setSessionActive] = useState(false);
@@ -166,12 +168,19 @@ export default function DailySessionInteractive() {
   // Timer state
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
+  // DB question preview state
+  const [dbQuestions, setDbQuestions] = useState<Question[]>([]);
+  const [displayedDbQuestions, setDisplayedDbQuestions] = useState<Question[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('All');
+  const [isLoadingDbQuestions, setIsLoadingDbQuestions] = useState(false);
+
   // Load active session from localStorage if user refreshes
   useEffect(() => {
     const activeDate = localStorage.getItem('ninja_active_session_date');
     if (activeDate) {
       loadSessionData(activeDate);
     }
+    loadDbQuestions();
   }, []);
 
   // Timer effect
@@ -337,6 +346,57 @@ export default function DailySessionInteractive() {
     setShowExplain(false);
   };
 
+  const loadDbQuestions = async () => {
+    setIsLoadingDbQuestions(true);
+    try {
+      const all = await questionsService.getAll();
+      setDbQuestions(all);
+      const shuffled = [...all].sort(() => Math.random() - 0.5);
+      setDisplayedDbQuestions(shuffled.slice(0, 10));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingDbQuestions(false);
+    }
+  };
+
+  const pickQuestionsForFilter = (filter: CategoryFilter, pool: Question[]) => {
+    const filtered = filter === 'All' ? pool : pool.filter((q) => q.category === filter);
+    const shuffled = [...filtered].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 10);
+  };
+
+  const handleCategoryFilterChange = (filter: CategoryFilter) => {
+    setCategoryFilter(filter);
+    setDisplayedDbQuestions(pickQuestionsForFilter(filter, dbQuestions));
+  };
+
+  const handleRegenerateFromDb = () => {
+    setDisplayedDbQuestions(pickQuestionsForFilter(categoryFilter, dbQuestions));
+  };
+
+  const handleExportCSV = () => {
+    const header = ['#', 'Category', 'Sub-Type', 'Difficulty', 'Question Type', 'Question'];
+    const rows = displayedDbQuestions.map((q, i) => [
+      String(i + 1),
+      q.category,
+      q.subType,
+      q.difficulty,
+      q.questionType || q.subType,
+      `"${q.questionText.replace(/"/g, '""')}"`,
+    ]);
+    const csv = [header, ...rows].map((r) => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `interview-ninja-questions.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const activeQuestion = questions[currentIndex];
   const activeExplanation = EXPLANATIONS[currentIndex] || { answer: "Study the topic and write down your solution.", detail: "" };
 
@@ -350,77 +410,182 @@ export default function DailySessionInteractive() {
 
   // Phase 1: Setup Form
   if (!sessionActive) {
+    const difficultyColor: Record<string, string> = {
+      Hard: 'bg-red-500/10 text-red-400 border-red-500/20',
+      Medium: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+      Easy: 'bg-green-500/10 text-green-400 border-green-500/20',
+    };
+
     return (
-      <div className="max-w-3xl mx-auto bg-card rounded-lg p-36 shadow-lg border border-border mt-36">
-        <h2 className="font-heading text-2xl font-semibold text-foreground mb-24 flex items-center gap-12">
-          <Icon name="AcademicCapIcon" size={24} variant="outline" className="text-primary" />
-          Setup Today's Daily Session
-        </h2>
-        <form onSubmit={handleStartSession} className="space-y-24">
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-6">Difficulty Level</label>
-            <div className="grid grid-cols-4 gap-12">
-              {['Easy', 'Medium', 'Hard', 'Mixed'].map((diff) => (
-                <button
-                  key={diff}
-                  type="button"
-                  onClick={() => setDifficulty(diff)}
-                  className={`
-                    py-12 rounded-md border text-sm font-medium transition-smooth focus-ring
-                    ${
-                      difficulty === diff
-                        ? 'bg-primary border-primary text-primary-foreground'
-                        : 'bg-input border-border text-muted-foreground hover:border-muted-foreground'
-                    }
-                  `}
-                >
-                  {diff}
-                </button>
-              ))}
+      <div className="max-w-3xl mx-auto mt-36 space-y-36">
+        {/* Session Setup Form */}
+        <div className="bg-card rounded-lg p-36 shadow-lg border border-border">
+          <h2 className="font-heading text-2xl font-semibold text-foreground mb-24 flex items-center gap-12">
+            <Icon name="AcademicCapIcon" size={24} variant="outline" className="text-primary" />
+            Setup Today's Daily Session
+          </h2>
+          <form onSubmit={handleStartSession} className="space-y-24">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-6">Difficulty Level</label>
+              <div className="grid grid-cols-4 gap-12">
+                {['Easy', 'Medium', 'Hard', 'Mixed'].map((diff) => (
+                  <button
+                    key={diff}
+                    type="button"
+                    onClick={() => setDifficulty(diff)}
+                    className={`
+                      py-12 rounded-md border text-sm font-medium transition-smooth focus-ring
+                      ${
+                        difficulty === diff
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-input border-border text-muted-foreground hover:border-muted-foreground'
+                      }
+                    `}
+                  >
+                    {diff}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="cv-text" className="block text-sm font-medium text-foreground mb-6">
+                Paste context or upload any document (Optional)
+              </label>
+              <textarea
+                id="cv-text"
+                rows={4}
+                value={cvText}
+                onChange={(e) => setCvText(e.target.value)}
+                placeholder="Paste context or document text here..."
+                className="w-full rounded-md border border-border bg-input px-12 py-12 text-sm text-foreground focus-ring placeholder:text-muted-foreground"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="jd-text" className="block text-sm font-medium text-foreground mb-6">
+                Paste Job Description (Optional)
+              </label>
+              <textarea
+                id="jd-text"
+                rows={4}
+                value={jdText}
+                onChange={(e) => setJdText(e.target.value)}
+                placeholder="Paste target Job Description here to customize focus areas..."
+                className="w-full rounded-md border border-border bg-input px-12 py-12 text-sm text-foreground focus-ring placeholder:text-muted-foreground"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-12 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-smooth flex items-center justify-center gap-12 focus-ring disabled:opacity-50"
+            >
+              {loading ? (
+                <span className="w-18 h-18 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+              ) : (
+                <Icon name="PlayIcon" size={18} variant="solid" />
+              )}
+              Generate Daily Session (10 Questions)
+            </button>
+          </form>
+        </div>
+
+        {/* Question Preview from DB */}
+        <div className="bg-card rounded-lg p-36 shadow-lg border border-border">
+          {/* Header row */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-12 mb-20">
+            <h3 className="font-heading text-xl font-semibold text-foreground flex items-center gap-10">
+              <Icon name="CircleStackIcon" size={20} variant="outline" className="text-primary" />
+              Questions from Database
+              {dbQuestions.length > 0 && (
+                <span className="text-xs font-normal text-muted-foreground ml-4">({dbQuestions.length} total)</span>
+              )}
+            </h3>
+            <div className="flex gap-8">
+              <button
+                onClick={handleRegenerateFromDb}
+                disabled={isLoadingDbQuestions || dbQuestions.length === 0}
+                className="px-14 py-7 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted transition-smooth flex items-center gap-6 disabled:opacity-40 disabled:pointer-events-none"
+              >
+                <Icon name="ArrowPathIcon" size={15} variant="outline" />
+                Regenerate
+              </button>
+              <button
+                onClick={handleExportCSV}
+                disabled={displayedDbQuestions.length === 0}
+                className="px-14 py-7 rounded-md bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/90 transition-smooth flex items-center gap-6 disabled:opacity-40 disabled:pointer-events-none"
+              >
+                <Icon name="ArrowDownTrayIcon" size={15} variant="outline" />
+                Export CSV
+              </button>
             </div>
           </div>
 
-          <div>
-            <label htmlFor="cv-text" className="block text-sm font-medium text-foreground mb-6">
-              Paste context or upload any document (Optional)
-            </label>
-            <textarea
-              id="cv-text"
-              rows={4}
-              value={cvText}
-              onChange={(e) => setCvText(e.target.value)}
-              placeholder="Paste context or document text here..."
-              className="w-full rounded-md border border-border bg-input px-12 py-12 text-sm text-foreground focus-ring placeholder:text-muted-foreground"
-            />
+          {/* Category filter pills */}
+          <div className="flex flex-wrap gap-8 mb-20">
+            {(['All', 'Interview', 'CV Skill'] as CategoryFilter[]).map((cat) => (
+              <button
+                key={cat}
+                onClick={() => handleCategoryFilterChange(cat)}
+                className={`px-16 py-6 rounded-full text-sm font-medium transition-smooth border ${
+                  categoryFilter === cat
+                    ? 'bg-primary border-primary text-primary-foreground'
+                    : 'bg-muted border-border text-muted-foreground hover:border-muted-foreground'
+                }`}
+              >
+                {cat}
+                {cat !== 'All' && dbQuestions.length > 0 && (
+                  <span className="ml-6 text-xs opacity-70">
+                    ({dbQuestions.filter((q) => q.category === cat).length})
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
 
-          <div>
-            <label htmlFor="jd-text" className="block text-sm font-medium text-foreground mb-6">
-              Paste Job Description (Optional)
-            </label>
-            <textarea
-              id="jd-text"
-              rows={4}
-              value={jdText}
-              onChange={(e) => setJdText(e.target.value)}
-              placeholder="Paste target Job Description here to customize focus areas..."
-              className="w-full rounded-md border border-border bg-input px-12 py-12 text-sm text-foreground focus-ring placeholder:text-muted-foreground"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-12 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-smooth flex items-center justify-center gap-12 focus-ring disabled:opacity-50"
-          >
-            {loading ? (
-              <span className="w-18 h-18 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-            ) : (
-              <Icon name="PlayIcon" size={18} variant="solid" />
-            )}
-            Generate Daily Session (10 Questions)
-          </button>
-        </form>
+          {/* Question cards */}
+          {isLoadingDbQuestions ? (
+            <div className="flex justify-center py-48">
+              <div className="w-36 h-36 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
+            </div>
+          ) : displayedDbQuestions.length === 0 ? (
+            <div className="text-center py-48 text-muted-foreground">
+              <Icon name="InboxIcon" size={36} variant="outline" className="mx-auto mb-12 opacity-40" />
+              <p className="text-sm">No questions found in the database yet.</p>
+              <p className="text-xs mt-4 opacity-60">Generate your first daily session above to populate the question bank.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-14">
+              {displayedDbQuestions.map((q, idx) => (
+                <div
+                  key={q.id}
+                  className="bg-background border border-border rounded-lg p-18 flex flex-col gap-10 hover:border-primary/40 transition-smooth"
+                >
+                  <div className="flex items-center justify-between gap-8">
+                    <div className="flex items-center gap-7 flex-wrap">
+                      <span className="text-xs font-semibold px-10 py-4 rounded-full bg-primary/10 text-primary">
+                        {q.category}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{q.subType}</span>
+                    </div>
+                    <span
+                      className={`text-xs font-semibold px-10 py-4 rounded-md border shrink-0 ${
+                        difficultyColor[q.difficulty] ?? 'bg-muted text-muted-foreground border-border'
+                      }`}
+                    >
+                      {q.difficulty}
+                    </span>
+                  </div>
+                  <p className="text-sm text-foreground leading-relaxed">
+                    <span className="text-muted-foreground font-medium mr-4">Q{idx + 1}.</span>
+                    {q.questionText}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   }

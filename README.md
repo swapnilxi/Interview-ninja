@@ -1,6 +1,6 @@
-# Interview-Ninja (CV-Aware Interview Coach)
+# Lab-Ninja (CV-Aware Interview Coach)
 
-Interview-Ninja is a monorepo containing a FastAPI backend and a Next.js frontend for an
+Lab-Ninja is a monorepo containing a FastAPI backend and a Next.js frontend for an
 agent-powered interview coach for software and computer vision engineers. It:
 
 - Uses a system prompt tailored for daily interview training.
@@ -15,11 +15,11 @@ agent-powered interview coach for software and computer vision engineers. It:
 
 - Backend (FastAPI API server)
   - `backend/main.py`: FastAPI app exposing health, sessions, questions, and export endpoints.
-  - `interview_ninja/db.py`: SQLite schema and helpers for sessions and
+  - `lab_ninja/db.py`: SQLite schema and helpers for sessions and
     questions, optimized for the Previous Questions tab filters.
-  - `interview_ninja/export_md.py`: Markdown export utilities used when
+  - `lab_ninja/export_md.py`: Markdown export utilities used when
     the user chooses to export a day's questions.
-  - `interview_ninja/rubrics.md`: answer-evaluation rubrics by question
+  - `lab_ninja/rubrics.md`: answer-evaluation rubrics by question
     sub-type.
 - Frontend (Next.js + TypeScript + Tailwind)
   - `frontend/`: Next.js app (App Router, TypeScript, Tailwind) that can
@@ -27,8 +27,8 @@ agent-powered interview coach for software and computer vision engineers. It:
 
 ## Backend Core Components
 
-- `agent_config.interview_ninja.json`: configuration and system prompt
-  for the Interview-Ninja agent, including output schema and topic
+- `agent_config.lab_ninja.json`: configuration and system prompt
+  for the Lab-Ninja agent, including output schema and topic
   selection rules.
 
 You can integrate this package into any agent runtime or UI stack
@@ -39,7 +39,7 @@ You can integrate this package into any agent runtime or UI stack
 - Letting the user select or edit topics in the Curate Questions tab.
 - Calling the agent with those inputs and then saving questions via
   `interview_ninja.db`.
-- Using `interview_ninja.export_md.render_markdown_for_day` to
+- Using `lab_ninja.export_md.render_markdown_for_day` to
   generate Markdown when the user opts to export.
 
 ## Running Locally

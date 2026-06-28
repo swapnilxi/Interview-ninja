@@ -1,4 +1,4 @@
-"""FastAPI backend for Interview-Ninja.
+"""FastAPI backend for Lab-Ninja.
 
 This service exposes HTTP endpoints for:
 - Health checks
@@ -8,6 +8,7 @@ This service exposes HTTP endpoints for:
 - Updating question performance ratings
 - Saving and fetching daily session answers
 - Managing API models and key settings
+- Lab-specific endpoints are served by pluggable module routers
 """
 
 from __future__ import annotations
@@ -19,8 +20,8 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from interview_ninja import __version__ as core_version
-from interview_ninja.db import (
+from lab_ninja import __version__ as core_version
+from lab_ninja.db import (
     Category,
     QuestionRecord,
     create_session,
@@ -33,19 +34,17 @@ from interview_ninja.db import (
     fetch_progress_stats,
     fetch_settings,
     save_settings,
-    fetch_system_design_topics,
-    save_system_design_topic,
-    fetch_cv_topics,
-    save_cv_topic,
-    fetch_lab_sections,
-    save_lab_section,
 )
-from interview_ninja.export_md import render_markdown_for_day
+from lab_ninja.export_md import render_markdown_for_day
+
+# Lab module routers
+from modules.dsa_lab.router import router as dsa_router
+from modules.cv_lab.router import router as cv_router
+from modules.system_design_lab.router import router as sd_router
 
 
-app = FastAPI(title="Interview-Ninja API", version=core_version)
+app = FastAPI(title="Lab-Ninja API", version=core_version)
 
-# Enable CORS for frontend API communications
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -54,11 +53,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Register lab module routers
+app.include_router(dsa_router)
+app.include_router(cv_router)
+app.include_router(sd_router)
+
 
 @app.on_event("startup")
-async def _startup() -> None:  # pragma: no cover - simple wiring
+async def _startup() -> None:  # pragma: no cover
     init_db()
 
+
+# ── Pydantic models ──────────────────────────────────────────────────────────
 
 class SessionCreate(BaseModel):
     difficulty_hint: Optional[str] = Field(
@@ -134,11 +140,13 @@ class UserSettingsSchema(BaseModel):
     anthropicKey: str
 
 
+# ── Core endpoints ────────────────────────────────────────────────────────────
+
 @app.get("/health")
 async def health() -> dict:
     return {
         "status": "ok",
-        "service": "interview-ninja-api",
+        "service": "lab-ninja-api",
         "version": core_version,
     }
 
@@ -169,26 +177,11 @@ async def persist_questions(payload: QuestionBatchCreate) -> dict:
 
 @app.get("/questions", response_model=List[QuestionOut])
 async def list_questions(
-    category: Optional[Category] = Query(
-        default=None,
-        description="Filter by category: interview | cv_skill. Omit for all.",
-    ),
-    session_date: Optional[str] = Query(
-        default=None,
-        description="Filter by question_date (YYYY-MM-DD).",
-    ),
-    topic: Optional[str] = Query(
-        default=None,
-        description="Optional topic token to filter on (e.g. cv_deep_learning).",
-    ),
+    category: Optional[Category] = Query(default=None),
+    session_date: Optional[str] = Query(default=None),
+    topic: Optional[str] = Query(default=None),
 ) -> List[QuestionOut]:
-    records = list(
-        fetch_questions(
-            category=category,
-            session_date=session_date,
-            topic=topic,
-        )
-    )
+    records = list(fetch_questions(category=category, session_date=session_date, topic=topic))
 
     out: List[QuestionOut] = []
     for r in records:
@@ -252,13 +245,7 @@ async def save_settings_endpoint(payload: UserSettingsSchema) -> dict:
 
 @app.get("/export", response_model=str)
 async def export_markdown(
-    session_date: Optional[str] = Query(
-        default=None,
-        description=(
-            "Date for which to export questions (YYYY-MM-DD). If omitted, "
-            "today's date is used."
-        ),
-    )
+    session_date: Optional[str] = Query(default=None),
 ) -> str:
     if session_date is None:
         session_date = date.today().isoformat()
@@ -270,100 +257,6 @@ async def export_markdown(
     return render_markdown_for_day(records, session_date=session_date)
 
 
-class LabSectionIn(BaseModel):
-    name: str
-    isCustom: bool = True
-
-@app.get("/{lab_name}/sections")
-async def get_lab_sections_endpoint(lab_name: str) -> List[dict]:
-    db_lab_name = lab_name.replace('-', '_')
-    return fetch_lab_sections(db_lab_name)
-
-@app.post("/{lab_name}/sections")
-async def save_lab_section_endpoint(lab_name: str, payload: LabSectionIn) -> dict:
-    db_lab_name = lab_name.replace('-', '_')
-    save_lab_section(db_lab_name, payload.name, 1 if payload.isCustom else 0)
-    return {"status": "success"}
-
-class SDSubtopicIn(BaseModel):
-    id: str
-    name: str
-    brief: str
-
-
-class SDTopicIn(BaseModel):
-    id: str
-    name: str
-    brief: str
-    category: str
-    scale: str
-    difficulty: str
-    isLLD: bool = False
-    subtopics: List[SDSubtopicIn] = Field(default_factory=list)
-
-
-@app.get("/system-design/topics")
-async def get_system_design_topics_endpoint() -> List[dict]:
-    return fetch_system_design_topics()
-
-
-@app.post("/system-design/topics")
-async def save_system_design_topic_endpoint(payload: SDTopicIn) -> dict:
-    save_system_design_topic(payload.model_dump())
-    return {"status": "success"}
-
-
-class CVSubtopicIn(BaseModel):
-    id: str
-    name: str
-    brief: str
-
-
-class CVTopicIn(BaseModel):
-    id: str
-    name: str
-    brief: str
-    category: str
-    difficulty: str
-    prerequisites: List[str] = Field(default_factory=list)
-    subtopics: List[CVSubtopicIn] = Field(default_factory=list)
-
-
-@app.get("/cv/topics")
-async def get_cv_topics_endpoint() -> List[dict]:
-    return fetch_cv_topics()
-
-
-@app.post("/cv/topics")
-async def save_cv_topic_endpoint(payload: CVTopicIn) -> dict:
-    save_cv_topic(payload.model_dump())
-    return {"status": "success"}
-
-class DSASubtopicIn(BaseModel):
-    id: str
-    name: str
-    brief: str
-
-class DSATopicIn(BaseModel):
-    id: str
-    name: str
-    brief: str
-    category: str
-    difficulty: str
-    prerequisites: List[str] = Field(default_factory=list)
-    subtopics: List[DSASubtopicIn] = Field(default_factory=list)
-
-@app.get("/dsa/topics")
-async def get_dsa_topics_endpoint() -> List[dict]:
-    from interview_ninja.db import fetch_dsa_topics
-    return fetch_dsa_topics()
-
-@app.post("/dsa/topics")
-async def save_dsa_topic_endpoint(payload: DSATopicIn) -> dict:
-    from interview_ninja.db import save_dsa_topic
-    save_dsa_topic(payload.model_dump())
-    return {"status": "success"}
-
 # To run locally:
 #   uvicorn backend.main:app --reload --port 8000
-
+#   or from backend/: uvicorn main:app --reload --port 8000

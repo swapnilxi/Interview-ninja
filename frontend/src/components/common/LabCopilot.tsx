@@ -8,6 +8,7 @@ interface Message { id: string; role: 'user' | 'ai'; content: string; }
 interface LabCopilotProps {
   context: string;
   labType?: 'dsa' | 'cv' | 'system-design';
+  onCollapse?: () => void;
 }
 
 const HINT_LEVELS: Record<string, string[]> = {
@@ -84,7 +85,7 @@ That's distributed systems! Big lemonade stand problems, solved with big lemonad
 
 type CopilotTab = 'hint' | 'deeper' | 'eli5' | 'chat';
 
-export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps) {
+export default function LabCopilot({ context, labType = 'dsa', onCollapse }: LabCopilotProps) {
   const [activeTab, setActiveTab] = useState<CopilotTab>('chat');
   const [hintLevel, setHintLevel] = useState(0);
   const [hintShown, setHintShown] = useState(false);
@@ -143,14 +144,21 @@ export default function LabCopilot({ context, labType = 'dsa' }: LabCopilotProps
   return (
     <div className="flex flex-col" style={{ height: '100%', overflow: 'hidden' }}>
       {/* Header */}
-      <div className="p-2 border-b border-border bg-surface flex-shrink-0">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center">
-            <Icon name="SparklesIcon" size={14} className="text-secondary" variant="solid" />
+      <div className="px-3 py-2.5 border-b border-border bg-surface flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-secondary/20 flex items-center justify-center flex-shrink-0">
+            <Icon name="SparklesIcon" size={13} className="text-secondary" variant="solid" />
           </div>
-          <span className="font-heading text-sm font-semibold text-foreground">AI Copilot</span>
+          <div className="flex-1 min-w-0">
+            <span className="font-heading text-xs font-semibold text-foreground">AI Copilot</span>
+            <p className="text-[10px] text-muted-foreground truncate leading-none mt-0.5" title={context}>{context}</p>
+          </div>
+          {onCollapse && (
+            <button onClick={onCollapse} className="flex-shrink-0 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-all" title="Collapse">
+              <Icon name="ChevronRightIcon" size={13} />
+            </button>
+          )}
         </div>
-        <p className="text-xs text-muted-foreground truncate" title={context}>📍 {context}</p>
       </div>
       
       {/* Tab content — fills remaining space, uses flex column so children can pin bottom */}

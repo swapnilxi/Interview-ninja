@@ -29,7 +29,7 @@ const designSystem = {
     accentForeground:     '#fffaf2',
     muted:                '#eee6da',
     mutedForeground:      '#71695f',
-    border:               'rgba(64, 55, 45, 0.15)',
+    border:               'rgba(64, 55, 45, 0.18)',
     input:                '#fffdf8',
     ring:                 '#6d6be8',
     success:              '#14845f',
@@ -63,7 +63,7 @@ const designSystem = {
     accentForeground:     '#25190b',
     muted:                '#302a22',
     mutedForeground:      '#b9ad9f',
-    border:               'rgba(255, 246, 235, 0.13)',
+    border:               'rgba(255, 246, 235, 0.17)',
     input:                '#29231c',
     ring:                 '#a9a5ff',
     success:              '#54c79a',
@@ -171,22 +171,26 @@ const designSystem = {
     md:   '0 10px 26px rgba(15, 12, 8, 0.10)',
     lg:   '0 20px 48px rgba(15, 12, 8, 0.14)',
     glow: '0 0 0 1px var(--color-border), 0 12px 32px var(--color-glow)',
-    card: '0 1px 2px rgba(15, 12, 8, 0.06), 0 14px 36px rgba(15, 12, 8, 0.08)',
+    card: '0 1px 3px rgba(15, 12, 8, 0.07), 0 10px 28px rgba(15, 12, 8, 0.07)',
   },
 
   layout: {
-    headerHeight:  '60px',
-    sidebarWidth:  '272px',
-    copilotWidth:  '300px',
-    readableWidth: '900px',
-    cardMaxWidth:  '820px',
-    pagePadding:   'clamp(1rem, 3vw, 2.5rem)',
+    headerHeight:          '60px',
+    sidebarWidth:          '264px',
+    sidebarCollapsedWidth: '48px',
+    copilotWidth:          '300px',
+    copilotCollapsedWidth: '48px',
+    readableWidth:         '900px',
+    cardMaxWidth:          '820px',
+    pageMaxWidth:          '1100px',
+    pagePadding:           '24px',
   },
 
   components: {
     card:           'rounded-lg border border-border bg-card text-card-foreground shadow-card',
     cardMuted:      'rounded-lg border border-border bg-card/70 text-card-foreground',
-    labShell:       'min-h-screen bg-background pt-[60px] text-foreground',
+    /** h-screen + overflow-hidden caps layout at exactly 100vh; pt-[60px] clears the fixed header */
+    labShell:       'h-screen overflow-hidden bg-background pt-[60px] text-foreground',
     labSidebar:     'bg-[var(--color-sidebar)] border-border',
     labMain:        'bg-background',
     labCard:        'rounded-lg border border-border bg-card shadow-card',
@@ -194,6 +198,13 @@ const designSystem = {
     /** Wiki index topic card — lab accent bar + hover title colour applied inline */
     wikiTopicCard:  'display-card group relative overflow-hidden cursor-pointer h-full',
     button:         'rounded-md font-medium transition-smooth focus-ring',
+    /** Nav link active: soft tint via color-mix(primary 10%) — no filled pill, no shadow-glow */
+    navLinkActive:  '.app-nav-link-active  (CSS class — color-mix, not @apply)',
+    /** Page-level layout utilities (max-w-[1100px] mx-auto px-24 py-24) */
+    pageWrapper:    'max-w-[1100px] mx-auto px-24 py-24',
+    pageHeader:     'mb-24',
+    pageTitle:      'font-heading text-3xl font-bold text-foreground mb-6',
+    pageSubtitle:   'text-sm text-muted-foreground max-w-xl leading-relaxed',
   },
 };
 

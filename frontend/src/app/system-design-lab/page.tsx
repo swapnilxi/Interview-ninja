@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import SystemDesignLabInteractive from './components/SystemDesignLabInteractive';
+import SystemDesignLabInteractive from '@/modules/system-design-lab/SystemDesignLabModule';
 
 import Header from '@/components/common/Header';
 
